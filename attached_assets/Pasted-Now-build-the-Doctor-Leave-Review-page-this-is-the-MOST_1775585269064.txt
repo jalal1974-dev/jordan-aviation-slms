@@ -1,0 +1,146 @@
+Now build the Doctor Leave Review page — this is the MOST IMPORTANT page in the entire SLMS system. This is Part 1 (Left Column — patient info, documents, employee comment).
+
+Read existing files first:
+- src/types/index.ts for types
+- src/services/mockData.ts for mock data
+- src/store/authStore.ts and leaveStore.ts
+- src/pages/doctor/DoctorDashboard.tsx for styling patterns
+- src/i18n/en.json and ar.json
+
+CREATE src/pages/doctor/LeaveReview.tsx
+
+This is a two-column layout page where the doctor reviews a sick leave and makes a decision. The leave ID comes from URL params (/doctor/review/:id).
+
+OVERALL LAYOUT:
+- Top: Back button "← Back to Queue" + Page title "Leave Review" / "مراجعة الإجازة" + Ref# in gold (e.g., "SL-2024-00083")
+- Two-column layout: antd Row with Col span=14 (left) and Col span=10 (right)
+- For now, build the LEFT COLUMN completely. The RIGHT COLUMN will just have a placeholder card saying "AI Analysis & Decision — Coming in Part 2"
+
+=== LEFT COLUMN (span=14) ===
+
+CARD 1: "Employee Information" / "معلومات الموظف"
+- antd Row: Left side avatar (large, 64px, colored with first letter), Right side info
+- Name: bold, 18px (e.g., "Mohammad Al-Khatib" / "محمد الخطيب")
+- Employee #: "EMP-005" (gray)
+- Department: "Commercial" / "التجاري" 
+- Title: "Sales Manager" / "مدير المبيعات"
+- Stats bar (antd Row with 4 inline Statistic components, small):
+  - Total Leaves: 3 (blue)
+  - Days Used: 5 (orange)
+  - Balance: 9/14 (green)
+  - Violations: 0 (red/green)
+- "View Full Profile →" link (gold text)
+
+CARD 2: "Leave Information" / "معلومات الإجازة"
+- Reference Number: Large gold text "SL-2024-00083"
+- Status badge (colored Tag matching status)
+- Period: "June 1 — June 3, 2024" (formatted nicely)
+- Duration: "3 days" in large bold blue badge
+- Flags row (if applicable):
+  - 🏖️ "Weekend Adjacent" tag (if leave is near weekend)
+  - 🎊 "Holiday Adjacent" tag (if near holiday)
+  - 🔄 "Repeat Pattern" tag (if employee has frequent leaves)
+  Mock: show "Weekend Adjacent" flag for this leave
+
+CARD 3: "Medical Information (AI Extracted)" / "المعلومات الطبية (مستخرجة بالذكاء الاصطناعي)"
+- DOCTOR Section:
+  - Doctor Name: "Dr. Ahmad Saleh" / "د. أحمد صالح" (bold)
+  - Rank: Tag badge — "Specialist" (blue) / "طبيب اختصاص"
+  - Specialty: "Internal Medicine" / "الطب الباطني"
+  - Trust Score: Star display ★★★★☆ (0.88) with colored text (green for >0.7, yellow 0.4-0.7, red <0.4)
+  - History: "Issued 12 leaves (1 flagged)" small gray text
+  - IF trust < 0.4: Show red Alert "🚨 LOW TRUST DOCTOR — Exercise extra caution"
+
+- FACILITY Section (below doctor, separated by Divider):
+  - Facility Name: "Jordan Hospital" / "مستشفى الأردن" (bold)
+  - Type: Tag — "Private Hospital" (gray) / "مستشفى خاص"
+  - Trust Score: Stars ★★★★★ (0.90) green
+  - History: "20 leaves processed" small gray text
+  - IF facility is BLOCKED: Show HUGE red Alert "🚫 BLOCKED FACILITY — This facility is not approved. Leave should be REJECTED."
+
+CARD 4: "Diagnosis" / "التشخيص"
+- Symptoms: "Persistent cough, chest tightness, fever" 
+- Diagnosis: "Bronchitis" (bold)
+- ICD-10 Code: "J20.9" (in code-style gray box)
+- Hospitalized: Yes/No Tag (green "Yes" or gray "No")
+- Chronic Disease: Yes/No Tag
+- For the mock leave SL-2024-00083 (Mohammad, Bronchitis, Under Review)
+
+CARD 5: "Employee's Comment" / "تعليق الموظف" ⭐
+- Blue-tinted background card (background: #e6f7ff, border-left: 4px solid #1890ff)
+- Large quotation mark icon (top)
+- Employee's comment text in readable font (16px)
+- Mock comment: "بدأت أعاني من سعال شديد وضيق في التنفس منذ ثلاثة أيام. ذهبت إلى مستشفى الأردن حيث شخص الطبيب حالتي بالتهاب الشعب الهوائية ووصف لي المضادات الحيوية والراحة لمدة 3 أيام" (Arabic)
+- Below comment, show AI Comment Analysis (italic, smaller, gray background):
+  - "AI Analysis: Employee describes respiratory symptoms consistent with bronchitis diagnosis. Timeline matches medical records. Visit to Jordan Hospital is consistent with patient location."
+  - "Credibility Score: 85/100" with small Progress bar (green)
+
+CARD 6: "Documents" / "المستندات" ⭐
+- Grid layout (antd Row with Col span=12 each, so 2 columns)
+- For each document show a card with:
+  - Mock thumbnail placeholder: Colored rectangle (200px height) with large document type icon in center
+    - Certificate: blue bg, SafetyCertificateOutlined
+    - Receipt: green bg, DollarOutlined
+    - Prescription: purple bg, MedicineBoxOutlined
+    - Lab Results: cyan bg, ExperimentOutlined
+  - Below thumbnail:
+    - Filename (bold)
+    - AI Classification Tag (colored matching type)
+    - Confidence: "95%" with small Progress bar
+    - Detection badges row:
+      - ✅ "Doctor Stamp" (green CheckCircle + text)
+      - ✅ "Facility Stamp" (green)
+      - ❌ "No Prescription" (red) — if missing
+      - ✅ "No Tampering" (green)
+  - Click on thumbnail → antd Modal showing larger view (just show the placeholder larger)
+
+- Mock documents for SL-2024-00083:
+  1. sick-certificate.jpg — SICK_LEAVE_CERTIFICATE, confidence 94%, stamps ✅✅, no tampering ✅
+  2. receipt.pdf — FINANCIAL_RECEIPT, confidence 89%, facility stamp ✅
+  3. prescription.jpg — PRESCRIPTION, confidence 91%, doctor stamp ✅
+
+- Document Checklist (below grid):
+  - antd List with icons:
+    - ✅ Sick Leave Certificate (CheckCircleFilled green)
+    - ✅ Financial Receipt (CheckCircleFilled green)
+    - ✅ Prescription (CheckCircleFilled green)
+    - ✅ Facility Stamp (CheckCircleFilled green)
+    - ✅ Doctor Stamp & Signature (CheckCircleFilled green)
+    - ⚠️ Lab Results (ExclamationCircleFilled orange) — "Recommended for respiratory conditions"
+    - ⚠️ X-ray/Imaging (ExclamationCircleFilled orange) — "Recommended for respiratory conditions"
+
+=== RIGHT COLUMN (span=10) — PLACEHOLDER FOR NOW ===
+
+Card 7: "AI Analysis & Decision"
+- Just show a placeholder card with:
+  - Title: "AI Analysis & Doctor's Decision" / "تحليل الذكاء الاصطناعي وقرار الطبيب"
+  - Content: "Coming in Part 2..." with ToolOutlined icon
+  - Gold border top
+  - This will be replaced with the full AI analysis + decision form in the next prompt
+
+=== UPDATE App.tsx ===
+- Import LeaveReview from './pages/doctor/LeaveReview'
+- Replace /doctor/review/:id PlaceholderPage with <LeaveReview />
+
+=== UPDATE TRANSLATIONS ===
+Add missing keys to both en.json and ar.json for:
+- Employee info labels, medical info, diagnosis, documents section
+- Comment analysis, credibility score
+- Document checklist items, detection badges
+- Flags (weekend adjacent, holiday adjacent, repeat pattern)
+- All card titles
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL text
+2. Get leave data from URL params (useParams) + mockData
+3. Handle case where leave is not found (show 404-like message)
+4. Show dynamic data from the leave object (employee, doctor, facility, documents)
+5. Trust score stars must be dynamic (filled ★ vs empty ☆)
+6. Document detection badges must be dynamic based on document properties
+7. Blue-tinted comment card must stand out visually
+8. Document thumbnails must be clickable (modal preview)
+9. Full RTL support
+10. Responsive (stack columns on mobile: left becomes full width on xs/sm)
+11. ZERO TypeScript errors
+12. Use antd: Card, Row, Col, Tag, Avatar, Statistic, Progress, Timeline, Alert, Badge, Divider, List, Modal, Image, Button, Tooltip, Typography
+13. Consistent navy/gold theme

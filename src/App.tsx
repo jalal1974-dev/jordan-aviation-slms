@@ -34,6 +34,7 @@ import MyLeaves from './pages/employee/MyLeaves';
 import LeaveDetail from './pages/employee/LeaveDetail';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import ReviewQueue from './pages/doctor/ReviewQueue';
+import LeaveReview from './pages/doctor/LeaveReview';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './types';
 
@@ -146,7 +147,7 @@ const App: React.FC = () => {
             path="doctor/review/:id"
             element={
               <ProtectedRoute allowedRoles={['COMPANY_DOCTOR']}>
-                <PlaceholderPage title="Leave Review" icon={<AuditOutlined />} />
+                <LeaveReview />
               </ProtectedRoute>
             }
           />
