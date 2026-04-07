@@ -1,0 +1,165 @@
+Now build 3 admin management pages for the SLMS app: Employees, Facilities, and Doctors.
+
+Read existing files first:
+- src/types/index.ts for types
+- src/services/mockData.ts for mock data
+- src/i18n/en.json and ar.json
+- src/pages/admin/AdminDashboard.tsx for styling patterns
+
+===================================================
+PAGE 1: CREATE src/pages/admin/EmployeesPage.tsx
+===================================================
+
+Employee management page showing all employees with details.
+
+TOP:
+- Title: "Employee Management" / "إدارة الموظفين" with TeamOutlined
+- Right: "Add Employee" gold button (mock only — shows coming soon message)
+
+STATISTICS ROW (4 cards, small):
+- Total Employees: 8 (from mock, representing 2000)
+- Active: 8 (green)
+- On Leave: 2 (orange) — employees with active sick leaves
+- With Violations: 1 (red)
+
+MAIN TABLE (antd Table):
+Columns:
+1. Avatar (colored circle with first letter) + Name (bold) + Name Arabic below (gray)
+2. Employee # (e.g., JA-1247)
+3. Department
+4. Job Title
+5. Email
+6. Role Tag (Employee=blue, Doctor=green, HR Manager=purple, HR Officer=cyan)
+7. Leave Balance: "X/14" with mini Progress bar
+8. Violations: Count with colored badge (0=green, 1+=red)
+9. Status: "Active" green tag or "Inactive" gray tag
+10. Actions: "View Profile" button, "View Leaves" dropdown option
+
+Features:
+- Searchable by name, email, employee number
+- Filter by department, role
+- Sortable columns
+- Expandable rows showing:
+  - Contact info (phone, email)
+  - Leave summary: Total leaves, approved, rejected, pending
+  - Last leave date and status
+  - Violation history
+- Pagination (10 per page)
+- Row click → could navigate to profile (mock only)
+
+===================================================
+PAGE 2: CREATE src/pages/admin/FacilitiesPage.tsx
+===================================================
+
+Medical facilities management with trust scores and blacklist control.
+
+TOP:
+- Title: "Medical Facilities" / "المنشآت الطبية" with BankOutlined
+- Right: "Add Facility" gold button (mock)
+
+STATISTICS ROW:
+- Total Facilities: 8 (blue)
+- Trusted (>0.7): 5 (green)
+- Under Watch (0.4-0.7): 1 (yellow)
+- Blocked: 2 (red) with 🚫 icon
+
+MAIN TABLE (antd Table):
+Columns:
+1. Facility Name (bold) + Arabic name below
+2. Type: Tag (Government Hospital=blue, Private Hospital=green, Private Clinic=cyan, Health Center=teal, Private 24h Center=RED, Royal Medical=purple, University Hospital=orange, Military Hospital=navy)
+3. Trust Score: Stars display ★★★★☆ (0.90) + actual number
+   - Color: green >0.7, yellow 0.4-0.7, red <0.4
+4. Total Leaves: Number
+5. Flagged Leaves: Number (red if >0)
+6. Flag Rate: Percentage (flagged/total) with colored Progress bar
+7. City
+8. Status: "Active" green / "🚫 Blocked" red tag
+9. Block Reason (if blocked, truncated with tooltip)
+10. Actions:
+    - "View Details" button
+    - "Block" / "Unblock" toggle button (red/green)
+    - "View Leaves" dropdown option
+
+Special rows:
+- Blocked facilities should have light red background
+- High flag rate (>50%) should have yellow background
+
+Expandable rows showing:
+- Full address, phone
+- Leave history chart (small bar chart or list of recent leaves)
+- Top doctors from this facility
+- Block/unblock history
+
+Filter bar: Type filter, Trust score range, Status (All/Active/Blocked), Search
+
+===================================================
+PAGE 3: CREATE src/pages/admin/DoctorsPage.tsx
+===================================================
+
+External doctors management with trust scores and leave history.
+
+TOP:
+- Title: "External Doctors" / "الأطباء الخارجيون" with MedicineBoxOutlined
+- Right: "Add Doctor" gold button (mock)
+
+STATISTICS ROW:
+- Total Doctors: 6 (blue)
+- Trusted (>0.7): 4 (green)
+- Under Watch (0.4-0.7): 0 (yellow)
+- Low Trust (<0.4): 1 (red)
+- New (no score): 1 (gray)
+
+MAIN TABLE (antd Table):
+Columns:
+1. Doctor Name (bold) + Arabic name below
+2. Rank: Tag (GP=gray, Resident=blue, Specialist=cyan, Consultant=purple)
+3. Specialty
+4. Trust Score: Stars ★★★★☆ + number (colored)
+5. Total Leaves Issued: Number
+6. Flagged Leaves: Number (red if >0)
+7. Flag Rate: Percentage with Progress bar
+8. Associated Facility: Facility name + type tag
+9. License #
+10. Actions: "View Details", "Flag Doctor", "View Leaves"
+
+Special rows:
+- Low trust (<0.4) doctors have red background
+- New doctors have blue "NEW" badge
+
+Expandable rows:
+- Full leave history list
+- Facilities this doctor is associated with
+- Flag/violation history
+- Trust score trend (if available)
+
+Filter bar: Rank, Specialty, Trust score range, Search
+
+===================================================
+UPDATE src/App.tsx:
+===================================================
+- Import EmployeesPage from './pages/admin/EmployeesPage'
+- Import FacilitiesPage from './pages/admin/FacilitiesPage'
+- Import DoctorsPage from './pages/admin/DoctorsPage'
+- Replace /admin/employees PlaceholderPage with <EmployeesPage />
+- Replace /admin/facilities PlaceholderPage with <FacilitiesPage />
+- Replace /admin/doctors PlaceholderPage with <DoctorsPage />
+
+===================================================
+UPDATE TRANSLATIONS:
+===================================================
+Add all missing keys for employees, facilities, and doctors management pages to both en.json and ar.json.
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL text
+2. Trust score stars must be dynamic and colored
+3. Blocked facilities must stand out visually (red background)
+4. Low trust doctors must stand out (red background)
+5. Expandable rows with detailed information
+6. Filter bars for each table
+7. Statistics rows above each table
+8. Full RTL support
+9. Responsive
+10. ZERO TypeScript errors
+11. Use data from mockData.ts (mockEmployees, mockFacilities, mockDoctors)
+12. Consistent navy/gold theme
+13. Professional admin panel feel
