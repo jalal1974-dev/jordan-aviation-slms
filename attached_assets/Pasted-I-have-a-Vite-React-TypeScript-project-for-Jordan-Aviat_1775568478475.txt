@@ -1,0 +1,204 @@
+I have a Vite + React + TypeScript project for "Jordan Aviation Sick Leave Management System" (SLMS). The foundation is already built with types, i18n translations (Arabic + English), mock data, and Zustand stores.
+
+Look at my existing files to understand the project:
+- src/types/index.ts (TypeScript interfaces & enums)
+- src/i18n/en.json + ar.json + config.ts (bilingual)
+- src/services/mockData.ts (mock employees, leaves, doctors, facilities)
+- src/store/authStore.ts (auth with login/logout)
+- src/store/leaveStore.ts (leave management)
+- src/store/notificationStore.ts (notifications)
+
+Now build the COMPLETE authentication + layout + routing layer. Create ALL these files:
+
+=== 1. UPDATE src/index.css ===
+Replace with:
+- Import Google Fonts: Inter (400,500,600,700) and Cairo (400,600,700)
+- Tailwind directives: @tailwind base; @tailwind components; @tailwind utilities;
+- CSS variables: --navy: #001529, --navy-light: #003a70, --gold: #D4AF37, --gold-light: #F0D78C, --success: #52c41a, --warning: #faad14, --danger: #ff4d4f, --info: #1890ff, --partial: #fa8c16, --examination: #eb2f96
+- Default body font: 'Inter', 'Cairo', sans-serif; background #f0f2f5
+- RTL support: [dir="rtl"] body { font-family: 'Cairo', 'Inter', sans-serif }
+- Custom scrollbar (navy/gold theme)
+- Login gradient: linear-gradient(135deg, #001529 0%, #003a70 50%, #D4AF37 100%)
+- .btn-gold class with gold background, white text, hover effects
+- Status badge classes: .status-submitted (blue), .status-processing (cyan), .status-under-review (orange), .status-docs-requested (purple), .status-exam-requested (magenta), .status-approved (green), .status-partially-approved (amber), .status-rejected (red)
+- Ant Design overrides: sider navy background, selected menu item gold, primary button gold
+- Fade-in and slide-in animations
+- Mobile responsive: hide login left panel below 768px
+
+=== 2. UPDATE src/main.tsx ===
+- Import React, ReactDOM
+- Import BrowserRouter from react-router-dom
+- Import App from './App'
+- Import './i18n/config' BEFORE App (must be first)
+- Import './index.css'
+- Render inside React.StrictMode and BrowserRouter
+
+=== 3. CREATE src/pages/auth/LoginPage.tsx ===
+Beautiful full-screen split layout login page:
+
+LEFT SIDE (60% width, gradient background #001529 → #003a70 → #D4AF37):
+- Large RocketOutlined icon (gold, 64px) as airline logo
+- "Jordan Aviation" title (gold, 36px, bold)
+- "Sick Leave Management System" subtitle (white, 18px)
+- Bilingual based on current language (use useTranslation)
+- 3 feature highlights at bottom with icons: AI Document Analysis, Secure & Compliant, Bilingual
+- Hide entire left side on mobile (<768px)
+
+RIGHT SIDE (40% width, white background, centered content):
+- Language toggle button top-right: "العربية" ↔ "English" with GlobalOutlined icon
+- Form card (max-width 400px, shadow, rounded):
+  - Title: "Welcome Back" / "مرحباً بعودتك" (24px, color #001529)
+  - Subtitle: "Sign in to your account" / "سجل الدخول إلى حسابك"
+  - antd Form:
+    - Email Input (MailOutlined prefix, placeholder "employee@jordanaviation.jo", required, email validation)
+    - Password Input.Password (LockOutlined prefix, required, min 6)
+    - Remember me Checkbox + "Forgot Password?" link (gold color)
+    - Submit Button (full width, large, gold background #D4AF37, white text: "Sign In" / "تسجيل الدخول")
+  - Divider "Or" / "أو"
+  - 3 Quick Login buttons (outlined, full width, stacked, for demo testing):
+    - 👤 "Login as Employee (Ahmed)" → fills ahmed@jordanaviation.jo / 123456
+    - 🩺 "Login as Company Doctor (Dr. Jalal)" → fills jalal@jordanaviation.jo / 123456
+    - 📋 "Login as HR Manager (Hana)" → fills hana@jordanaviation.jo / 123456
+  - "Don't have an account? Register" link → /register
+  - Footer: "© 2024 Jordan Aviation" (gray, 12px)
+
+Login Logic:
+- Call authStore login function
+- On success: navigate based on role (EMPLOYEE→/employee/dashboard, COMPANY_DOCTOR→/doctor/dashboard, HR_MANAGER→/admin/dashboard)
+- On fail: antd message.error "Invalid email or password"
+- Loading spinner on button while submitting
+- Use react-i18next useTranslation() for ALL text strings
+
+=== 4. CREATE src/pages/auth/RegisterPage.tsx ===
+Similar split layout to LoginPage:
+- Left side: same gradient, different tagline "Join Smart Leave Management"
+- Right side form:
+  - Title: "Create Account" / "إنشاء حساب"
+  - Fields: Employee Number (EMP-XXX), Full Name English, Full Name Arabic, Email (@jordanaviation.jo required), Department (Select with mock departments), Password, Confirm Password
+  - Checkbox: "I agree to company policies"
+  - Register button (gold)
+  - "Already have an account? Sign In" link → /login
+  - On submit: success message + redirect to /login (mock only)
+
+=== 5. CREATE src/components/layout/AppLayout.tsx ===
+Main app shell using antd Layout:
+
+SIDER (collapsible, 260px expanded, 80px collapsed, navy #001529):
+- Logo area (64px height): 
+  - Expanded: RocketOutlined (gold) + "JA SLMS" (white bold)
+  - Collapsed: RocketOutlined (gold) only
+- antd Menu (dark theme) with ROLE-BASED items:
+
+  EMPLOYEE menu:
+  - DashboardOutlined Dashboard → /employee/dashboard
+  - FileAddOutlined Submit Leave → /employee/submit-leave
+  - FileTextOutlined My Leaves → /employee/my-leaves
+  - BookOutlined Company Rules → /rules
+  - UserOutlined My Profile → /profile
+  - CalendarOutlined My Balance → /employee/balance
+  - WarningOutlined My Violations → /employee/violations
+
+  COMPANY_DOCTOR menu:
+  - DashboardOutlined Dashboard → /doctor/dashboard
+  - UnorderedListOutlined Review Queue → /doctor/queue
+  - CheckCircleOutlined My Decisions → /doctor/decisions
+  - BankOutlined Facilities → /doctor/facilities
+  - TeamOutlined Doctors → /doctor/doctors
+  - BookOutlined Company Rules → /rules
+
+  HR_MANAGER menu:
+  - DashboardOutlined Dashboard → /admin/dashboard
+  - FileTextOutlined All Leaves → /admin/leaves
+  - TeamOutlined Employees → /admin/employees
+  - BankOutlined Facilities → /admin/facilities
+  - MedicineBoxOutlined Doctors → /admin/doctors
+  - NotificationOutlined Circulars → /admin/circulars
+  - ExclamationCircleOutlined Penalties → /admin/penalties
+  - BarChartOutlined Reports → /admin/reports
+  - BookOutlined Company Rules → /rules
+
+- Highlight active menu item based on current route (useLocation)
+- Collapse trigger at sider bottom
+
+HEADER (64px, white, shadow, sticky top):
+- LEFT: Page title or Breadcrumb
+- RIGHT (flex row, gap 16px):
+  - BellOutlined with Badge (unread count from notificationStore) → click navigates to /notifications
+  - Language toggle: "العربية" ↔ "English" button that switches i18n language AND document direction (rtl/ltr)
+  - User Dropdown (antd Dropdown): Avatar + name, menu: Profile, Settings, Divider, Logout (red, calls authStore.logout → /login)
+
+CONTENT: padding 24px, min-height calc(100vh-64px), background #f0f2f5, renders <Outlet />
+
+Wrap everything in antd ConfigProvider with:
+- theme: { token: { colorPrimary: '#D4AF37', borderRadius: 8 } }
+- direction: 'rtl' for Arabic, 'ltr' for English (read from i18n or authStore)
+
+=== 6. CREATE src/components/layout/ProtectedRoute.tsx ===
+- Check authStore.isAuthenticated → if not → Navigate to /login
+- Check if user role is in allowedRoles array → if not → redirect to user's default dashboard
+- Props: children: ReactNode, allowedRoles?: string[]
+
+=== 7. CREATE src/pages/PlaceholderPage.tsx ===
+Reusable "Coming Soon" placeholder:
+- Props: title (string), icon (ReactNode), subtitle (string)
+- Shows large gold icon (64px), title, "Coming Soon — Under Construction" text
+- Uses antd Result component inside a Card with gold top border
+- Centered, max-width 600px
+
+=== 8. UPDATE src/App.tsx (COMPLETE REWRITE) ===
+Full routing with react-router-dom:
+
+Wrap with antd ConfigProvider (gold theme, dynamic direction based on language)
+
+Routes:
+- /login → LoginPage
+- /register → RegisterPage
+- / → AppLayout (protected) with nested routes:
+  
+  Employee routes (ProtectedRoute with EMPLOYEE role):
+  - /employee/dashboard → PlaceholderPage "Employee Dashboard" DashboardOutlined
+  - /employee/submit-leave → PlaceholderPage "Submit Sick Leave" FileAddOutlined
+  - /employee/my-leaves → PlaceholderPage "My Leaves" FileTextOutlined
+  - /employee/leave/:id → PlaceholderPage "Leave Details" FileSearchOutlined
+  - /employee/balance → PlaceholderPage "Leave Balance" CalendarOutlined
+  - /employee/violations → PlaceholderPage "My Violations" WarningOutlined
+
+  Doctor routes (ProtectedRoute with COMPANY_DOCTOR role):
+  - /doctor/dashboard → PlaceholderPage "Doctor Dashboard" DashboardOutlined
+  - /doctor/queue → PlaceholderPage "Review Queue" UnorderedListOutlined
+  - /doctor/review/:id → PlaceholderPage "Leave Review" AuditOutlined
+  - /doctor/decisions → PlaceholderPage "My Decisions" CheckCircleOutlined
+  - /doctor/facilities → PlaceholderPage "Facilities Analysis" BankOutlined
+  - /doctor/doctors → PlaceholderPage "Doctors Analysis" TeamOutlined
+
+  Admin routes (ProtectedRoute with HR_MANAGER and HR_OFFICER roles):
+  - /admin/dashboard → PlaceholderPage "Admin Dashboard" DashboardOutlined
+  - /admin/leaves → PlaceholderPage "All Leaves" FileTextOutlined
+  - /admin/employees → PlaceholderPage "Employees" TeamOutlined
+  - /admin/facilities → PlaceholderPage "Facilities" BankOutlined
+  - /admin/doctors → PlaceholderPage "Doctors" MedicineBoxOutlined
+  - /admin/circulars → PlaceholderPage "Circulars" NotificationOutlined
+  - /admin/penalties → PlaceholderPage "Penalties" ExclamationCircleOutlined
+  - /admin/reports → PlaceholderPage "Reports" BarChartOutlined
+
+  Shared routes (all authenticated users):
+  - /rules → PlaceholderPage "Company Rules" BookOutlined
+  - /notifications → PlaceholderPage "Notifications" BellOutlined
+  - /profile → PlaceholderPage "My Profile" UserOutlined
+
+  Default / → redirect to user's dashboard based on role
+  Catch-all * → redirect to /login
+
+CRITICAL REQUIREMENTS:
+1. Use react-i18next useTranslation() for ALL visible text — NO hardcoded English or Arabic strings
+2. Read existing types from src/types/index.ts (UserRole enum etc.)
+3. Read auth functions from src/store/authStore.ts (useAuthStore hook)
+4. Read notification count from src/store/notificationStore.ts
+5. Ant Design v5+ API (antd is v6.3.5 in this project)
+6. react-router-dom v7 API (useNavigate, useLocation, Outlet, Navigate)
+7. The login page must be BEAUTIFUL — professional airline quality
+8. Language toggle must flip RTL/LTR instantly across entire app
+9. Sider menu must show correct items per role and highlight active route
+10. All files must have zero TypeScript errors
+11. Import paths must be correct relative to file location
+12. Use @ant-design/icons for all icons

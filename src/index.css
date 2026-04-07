@@ -1,3 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --navy: #001529;
+  --navy-light: #003a70;
+  --gold: #D4AF37;
+  --gold-light: #F0D78C;
+  --success: #52c41a;
+  --warning: #faad14;
+  --danger: #ff4d4f;
+  --info: #1890ff;
+  --partial: #fa8c16;
+  --examination: #eb2f96;
+}
+
+body {
+  font-family: 'Inter', 'Cairo', sans-serif;
+  background: #f0f2f5;
+  margin: 0;
+  padding: 0;
+}
+
+[dir="rtl"] body,
+[dir="rtl"] * {
+  font-family: 'Cairo', 'Inter', sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f0f2f5; }
+::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+/* Login gradient */
+.login-gradient {
+  background: linear-gradient(135deg, #001529 0%, #003a70 50%, #D4AF37 100%);
+}
+
+/* Gold button */
+.btn-gold {
+  background-color: var(--gold) !important;
+  border-color: var(--gold) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+.btn-gold:hover {
+  background-color: #b8962e !important;
+  border-color: #b8962e !important;
+}
+
+/* Status badges */
+.status-submitted { background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+.status-processing { background: #e6fffb; color: #13c2c2; border: 1px solid #87e8de; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+.status-under-review { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+.status-docs-requested { background: #f9f0ff; color: #722ed1; border: 1px solid #d3adf7; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+.status-exam-requested { background: #fff0f6; color: #eb2f96; border: 1px solid #ffadd2; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+.status-approved { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+.status-partially-approved { background: #fffbe6; color: #d48806; border: 1px solid #ffe58f; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+.status-rejected { background: #fff1f0; color: #ff4d4f; border: 1px solid #ffa39e; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 500; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+.slide-in { animation: slideIn 0.4s ease-out; }
+
+/* Mobile: hide login left panel */
+@media (max-width: 767px) {
+  .login-left-panel { display: none !important; }
+  .login-right-panel { width: 100% !important; }
+}
