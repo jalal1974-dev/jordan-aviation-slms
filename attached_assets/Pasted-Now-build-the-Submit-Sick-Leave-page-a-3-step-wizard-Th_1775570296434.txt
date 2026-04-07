@@ -1,0 +1,210 @@
+Now build the Submit Sick Leave page — a 3-step wizard. This is the most important employee page in the SLMS.
+
+Read existing files first:
+- src/types/index.ts for all TypeScript types and enums
+- src/services/mockData.ts for mock doctors and facilities
+- src/store/leaveStore.ts for submitting leaves
+- src/store/authStore.ts for current user
+- src/i18n/en.json and ar.json for translations (add missing keys)
+
+CREATE src/pages/employee/SubmitLeave.tsx
+
+This is a 3-step wizard using antd Steps component. The concept is "Upload First" — employee uploads medical documents, then reviews AI-extracted information, then confirms and submits.
+
+=== OVERALL LAYOUT ===
+- Top: Page title "Submit Sick Leave" / "تقديم إجازة مرضية" with FileAddOutlined icon
+- antd Steps component (horizontal, 3 steps) showing current step with gold active color:
+  Step 1: "Upload Documents" / "رفع المستندات" (CloudUploadOutlined)
+  Step 2: "Review Information" / "مراجعة المعلومات" (EditOutlined)  
+  Step 3: "Confirm & Submit" / "تأكيد وإرسال" (CheckCircleOutlined)
+- Content area changes based on current step
+- Bottom navigation: "Previous" and "Next" / "Submit" buttons
+
+=== STEP 1: UPLOAD DOCUMENTS & COMMENT ===
+
+Large Card with title "Upload Your Medical Documents" / "ارفع مستنداتك الطبية":
+
+Upload Zone (antd Upload.Dragger, full width, 250px height):
+- Large CloudUploadOutlined icon (48px, gold color)
+- Primary text: "Drag & drop your medical documents here" / "اسحب وأفلت مستنداتك الطبية هنا"
+- Secondary text: "or click to browse files" / "أو انقر لاختيار الملفات"
+- Hint: "Supports: JPG, PNG, PDF — Max 10MB per file" / "يدعم: JPG, PNG, PDF — حد أقصى 10 ميجا للملف"
+- Accept: .jpg, .jpeg, .png, .pdf
+- Multiple files: true
+- Max file size: 10MB validation
+- Show file list below with: thumbnail preview, filename, size, remove button
+- On upload: don't actually upload, just store in component state
+
+Below Upload Zone — Document Classification (optional):
+- For each uploaded file, show a row with:
+  - Thumbnail/icon (image preview for images, PDF icon for PDFs)
+  - Filename
+  - antd Select dropdown to manually classify: "Sick Leave Certificate", "Financial Receipt", "Prescription", "Lab Results", "X-ray/Imaging", "Hospital Report", "Other"
+  - Remove button (DeleteOutlined, red)
+
+MOCK PRE-FILLED DATA (for demo/testing):
+- Pre-fill 3 mock files in state:
+  1. "sick-leave-certificate.jpg" (classified as SICK_LEAVE_CERTIFICATE, 2.4MB)
+  2. "pharmacy-receipt.pdf" (classified as FINANCIAL_RECEIPT, 1.1MB)
+  3. "prescription.jpg" (classified as PRESCRIPTION, 890KB)
+- Show these as if already uploaded with mock thumbnail placeholders
+
+Employee Comment Section:
+- Label: "Your Comment (Optional but Recommended)" / "تعليقك (اختياري لكن مُوصى به)"
+- antd Input.TextArea (6 rows, max 2000 characters, show character count)
+- Placeholder text: "Explain your circumstances: Why this doctor/facility? Was it an emergency? Any special circumstances? Related to a previous condition?" / "اشرح ظروفك: لماذا هذا الطبيب/المنشأة؟ هل كانت حالة طوارئ؟ ظروف خاصة؟ مرتبطة بحالة سابقة؟"
+- Helper text below: "Your explanation helps the company doctor make a fair decision" / "شرحك يساعد طبيب الشركة في اتخاذ قرار عادل"
+- MOCK pre-filled Arabic comment: "كنت أعاني من آلام شديدة في المعدة في الساعة الثانية صباحاً واضطررت للذهاب إلى الطوارئ. الطبيب شخص الحالة بالتهاب المعدة الحاد ووصف لي العلاج"
+
+Info Alert (antd Alert, type info):
+- "Your documents will be analyzed by our AI system to extract information automatically. You can review and correct any errors in the next step."
+
+Bottom: "Next" button (gold, right-aligned) — disabled if 0 files uploaded, enabled if at least 1 file
+
+=== STEP 2: REVIEW EXTRACTED INFORMATION ===
+
+Top Alert (antd Alert, type warning, showIcon):
+- "Our system analyzed your documents. Please review the extracted information below and correct any errors." / "قام نظامنا بتحليل مستنداتك. يرجى مراجعة المعلومات المستخرجة أدناه وتصحيح أي أخطاء."
+
+Two-column layout (antd Row: Col span=14 left, Col span=10 right):
+
+LEFT COLUMN — Editable Form Fields:
+
+Card "Doctor Information" / "معلومات الطبيب":
+- Doctor Name: antd AutoComplete (searchable, shows suggestions from mockDoctors)
+  - If known doctor: show green Tag "Known Doctor ★0.88"
+  - If new doctor: show blue Tag "New Doctor"
+  - Pre-filled mock: "Dr. Ahmad Saleh" with "Known Doctor ★0.88"
+- Doctor Rank: antd Select (CRITICAL field!):
+  - Options: GP / General Practitioner, Resident, Specialist, Consultant
+  - Pre-filled mock: "Specialist"
+  - ⚠️ IF GP is selected AND total days > 1: Show RED Alert below: "⚠️ RULE VIOLATION: General Practitioners can issue maximum 1 day (24 hours) sick leave. Your leave is X days. This will likely be rejected or partially approved." / with Arabic
+  - ⚠️ IF Specialist selected AND total days > 2: Show ORANGE Alert: "⚠️ WARNING: Specialists can issue maximum 2 days (48 hours) unless hospitalized or chronic disease with supporting documents."
+- Doctor Specialty: antd Select with 15+ options: General Medicine, Internal Medicine, Orthopedics, Gastroenterology, Neurology, Cardiology, Pulmonology, ENT, Ophthalmology, Dermatology, Urology, Psychiatry, Pediatrics, Surgery, Emergency Medicine
+  - Pre-filled: "Internal Medicine"
+
+Card "Facility Information" / "معلومات المنشأة الطبية":
+- Facility Name: antd AutoComplete (searchable, from mockFacilities)
+  - If known facility: show trust score Tag "★0.90 Trusted"
+  - If blocked facility: show RED banner "🚫 BLOCKED FACILITY — WILL BE AUTOMATICALLY REJECTED" with warning icon
+  - Pre-filled: "Jordan Hospital" with "★0.90 Trusted"
+- Facility Type: antd Select:
+  - Options: Government Hospital, Private Hospital, Private Clinic, Health Center, Private 24h Center, Royal Medical Services, University Hospital, Military Hospital
+  - ⚠️ IF "Private 24h Center" selected: Show HUGE RED Alert: "🚫 NOT APPROVED — Private 24-hour centers are blocked per company policy. This leave WILL BE REJECTED and a penalty will be applied." / with Arabic
+  - Pre-filled: "Private Hospital"
+
+Card "Leave Period" / "فترة الإجازة":
+- From Date: antd DatePicker (pre-filled: 2024-06-12)
+- To Date: antd DatePicker (pre-filled: 2024-06-13)
+- Auto-calculated display: "Total: 2 days" / "المجموع: يومين" (large, bold, blue badge)
+- Dynamic rule alerts based on doctor rank + days (same as above)
+- Conditional checkboxes (show ONLY if Specialist/Consultant AND days > 2):
+  - ☐ "Patient was hospitalized" / "تم إدخال المريض للمستشفى"
+  - ☐ "Chronic/recurring disease" / "مرض مزمن/متكرر"
+
+Card "Diagnosis Information" / "معلومات التشخيص":
+- Symptoms: antd Input (pre-filled: "Severe stomach pain, nausea, vomiting")
+- Diagnosis: antd Input (pre-filled: "Acute Gastritis")
+- ICD-10 Code: antd Input (pre-filled: "K29.1", small helper: "International Classification of Diseases code")
+
+RIGHT COLUMN — Document Results:
+
+Card "Uploaded Documents" / "المستندات المرفوعة":
+- For each uploaded file show:
+  - Thumbnail (small image preview or PDF icon)
+  - Filename
+  - AI Classification Tag (colored): "Sick Leave Certificate" (blue), "Receipt" (green), "Prescription" (purple)
+  - Confidence percentage: "92%" with small Progress bar (green >80%, yellow 60-80%, red <60%)
+- Mock confidence scores: Certificate 95%, Receipt 88%, Prescription 91%
+
+Card "Document Checklist" / "قائمة التحقق من المستندات":
+- Dynamic checklist based on facility type:
+  Always required:
+  - ✅ Sick Leave Certificate (detected)
+  - ✅ Financial Receipt (detected)
+  - ✅ Prescription (detected)
+  - ✅ Facility Stamp (detected on certificate)
+  - ✅ Doctor Stamp & Signature (detected)
+  
+  If Royal Medical Services:
+  - ❌ Medical Record Stamp (NOT detected — required for Royal Medical!)
+  
+  If condition needs imaging (stomach/respiratory/fractures):
+  - ⚠️ Lab Tests (recommended but not uploaded)
+  - ⚠️ X-ray/Imaging (recommended but not uploaded)
+
+  Use antd List with CheckCircleFilled (green) for detected, CloseCircleFilled (red) for missing required, ExclamationCircleFilled (orange) for recommended
+
+Card "Extraction Confidence" / "دقة الاستخراج":
+- Overall confidence: Large Progress circle 87% (antd Progress type="circle")
+- Color: green if >80%, yellow 60-80%, red <60%
+- Text below: "High confidence — most information extracted successfully"
+
+- "Add More Documents" button (outlined, PlusOutlined) — opens upload modal to add more files
+
+Bottom: "Previous" (left) + "Next" (right, gold) buttons
+
+=== STEP 3: CONFIRM & SUBMIT ===
+
+Title: "Review & Confirm Your Submission" / "مراجعة وتأكيد التقديم"
+
+All read-only summary cards (antd Descriptions or styled cards):
+
+Card 1: "Your Information" / "معلوماتك":
+- Name, Employee #, Department, Title (from authStore)
+
+Card 2: "Leave Details" / "تفاصيل الإجازة":
+- From Date → To Date, Total Days (bold), Doctor Name + Rank badge, Facility Name + Type badge
+
+Card 3: "Medical Information" / "المعلومات الطبية":
+- Symptoms, Diagnosis, ICD-10 Code
+- Hospitalized: Yes/No, Chronic: Yes/No
+
+Card 4: "Your Comment" / "تعليقك":
+- The employee's comment in a blue-tinted card (or "No comment provided")
+
+Card 5: "Uploaded Documents" / "المستندات المرفوعة":
+- List of files with classification tags and confidence
+
+Card 6: "Document Checklist Summary" / "ملخص قائمة التحقق":
+- Same checklist from Step 2 (read-only)
+
+Card 7 (IMPORTANT): "Rule Compliance Preview" / "معاينة الامتثال للقواعد":
+- Show any detected warnings/violations:
+  - ⚠️ "GP exceeded 24 hours — will likely be rejected or partially approved" (if applicable)
+  - ⚠️ "Specialist exceeded 48 hours — requires hospitalization proof" (if applicable)
+  - 🚫 "Blocked facility — will be automatically rejected" (if applicable)
+  - ❌ "Prescription not detected — may delay processing" (if applicable)
+  - ✅ "All required documents detected" (if all present)
+  - ✅ "Doctor rank within allowed leave duration" (if compliant)
+- Use colored Alert components for each
+
+Confirmation Section:
+- antd Checkbox: "I confirm that all information provided is accurate and all documents are authentic. I understand that falsification of medical documents will result in immediate rejection and disciplinary action." / Arabic version
+- Submit button: Large, full-width, gold background, CheckCircleOutlined icon, "Submit Sick Leave" / "تقديم الإجازة المرضية" — DISABLED until checkbox is checked
+
+After Submit:
+- Show antd Modal (success):
+  - Large green CheckCircleFilled icon (64px)
+  - Title: "Sick Leave Submitted Successfully!" / "تم تقديم الإجازة المرضية بنجاح!"
+  - Reference Number: "SL-2024-00091" (bold, gold, 24px)
+  - "A confirmation email will be sent to your registered email address"
+  - "Our AI system is now analyzing your documents. You will be notified when the review is complete."
+  - Two buttons: "View My Leaves" → /employee/my-leaves, "Back to Dashboard" → /employee/dashboard
+- Also add the new leave to leaveStore
+
+ALSO UPDATE src/App.tsx:
+- Import SubmitLeave from './pages/employee/SubmitLeave'
+- Replace the /employee/submit-leave PlaceholderPage route with <SubmitLeave />
+
+CRITICAL REQUIREMENTS:
+1. Use react-i18next useTranslation() for ALL text — add missing keys to both en.json and ar.json
+2. Use antd Steps, Form, Upload.Dragger, DatePicker, Select, AutoComplete, Input, TextArea, Alert, Progress, Checkbox, Modal, Button, Card, Row, Col, Tag, List, Descriptions, Badge
+3. Rule violation alerts must be DYNAMIC — they appear/disappear based on the selected doctor rank + leave duration + facility type
+4. The form must validate all required fields before allowing "Next"
+5. Mock data pre-filled so the wizard looks realistic when testing
+6. Full RTL support for Arabic layout
+7. Responsive design (stack columns on mobile)
+8. Smooth step transitions with animation
+9. ZERO TypeScript errors
+10. Import types from src/types/index.ts, use proper enums

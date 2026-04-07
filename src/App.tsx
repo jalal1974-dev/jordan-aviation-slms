@@ -29,6 +29,7 @@ import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import PlaceholderPage from './pages/PlaceholderPage';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import SubmitLeave from './pages/employee/SubmitLeave';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './types';
 
@@ -83,7 +84,7 @@ const App: React.FC = () => {
             path="employee/submit-leave"
             element={
               <ProtectedRoute allowedRoles={['EMPLOYEE']}>
-                <PlaceholderPage title="Submit Sick Leave" icon={<FileAddOutlined />} />
+                <SubmitLeave />
               </ProtectedRoute>
             }
           />

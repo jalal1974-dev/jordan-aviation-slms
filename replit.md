@@ -36,6 +36,9 @@ src/
       LoginPage.tsx              # Beautiful split-layout login (gradient + features)
       RegisterPage.tsx           # Registration form (JA email validation)
     PlaceholderPage.tsx          # "Coming Soon" placeholder for unbuilt pages
+    employee/
+      EmployeeDashboard.tsx      # Full employee dashboard (stats, chart, notifications)
+      SubmitLeave.tsx            # 3-step sick leave submission wizard (Upload → Review → Confirm)
   components/
     layout/
       AppLayout.tsx              # Main shell: Sider + Header + Content (Outlet)
