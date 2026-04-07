@@ -30,6 +30,8 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 import PlaceholderPage from './pages/PlaceholderPage';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import SubmitLeave from './pages/employee/SubmitLeave';
+import MyLeaves from './pages/employee/MyLeaves';
+import LeaveDetail from './pages/employee/LeaveDetail';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './types';
 
@@ -92,7 +94,7 @@ const App: React.FC = () => {
             path="employee/my-leaves"
             element={
               <ProtectedRoute allowedRoles={['EMPLOYEE']}>
-                <PlaceholderPage title="My Leaves" icon={<FileTextOutlined />} />
+                <MyLeaves />
               </ProtectedRoute>
             }
           />
@@ -100,7 +102,7 @@ const App: React.FC = () => {
             path="employee/leave/:id"
             element={
               <ProtectedRoute allowedRoles={['EMPLOYEE']}>
-                <PlaceholderPage title="Leave Details" icon={<FileSearchOutlined />} />
+                <LeaveDetail />
               </ProtectedRoute>
             }
           />

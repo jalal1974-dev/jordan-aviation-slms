@@ -1,0 +1,223 @@
+Now build the My Leaves list page AND the Leave Detail page for the SLMS employee.
+
+Read existing files first:
+- src/types/index.ts for all types and enums
+- src/services/mockData.ts for mock sick leaves data
+- src/store/leaveStore.ts for leaves
+- src/store/authStore.ts for current user
+- src/i18n/en.json and ar.json for translations
+
+BUILD 2 PAGES:
+
+===================================================
+PAGE 1: CREATE src/pages/employee/MyLeaves.tsx
+===================================================
+
+This page shows ALL sick leaves for the logged-in employee in a professional table with filters.
+
+TOP SECTION:
+- Page title: "My Sick Leaves" / "إجازاتي المرضية" with FileTextOutlined icon
+- Subtitle: "View and track all your sick leave requests" / "عرض وتتبع جميع طلبات إجازاتك المرضية"
+- Right side: "Submit New Leave" gold button → /employee/submit-leave
+
+FILTER BAR (antd Row with Cols, inside a Card):
+- Status filter: antd Select (mode multiple, placeholder "Filter by status"):
+  Options: All, Submitted, Processing, Under Review, Documents Requested, Examination Requested, Approved, Partially Approved, Rejected
+  Each option has a colored dot matching status color
+- Date Range: antd DatePicker.RangePicker
+- Search: antd Input.Search (placeholder: "Search by reference # or doctor name")
+- "Clear Filters" button (text type)
+
+STATISTICS ROW (4 small inline stats above table):
+- Total: X leaves (gray)
+- Approved: X (green)
+- Pending: X (orange)  
+- Rejected: X (red)
+
+MAIN TABLE (antd Table, bordered, with pagination):
+Columns:
+1. "Ref #" / "رقم المرجع": Gold colored link text (e.g., "SL-2024-00089"), clickable → navigates to /employee/leave/:id
+2. "Period" / "الفترة": From date — To date (formatted nicely)
+3. "Days" / "الأيام": Number with antd Badge (e.g., "2 days")
+4. "Doctor" / "الطبيب": Doctor name + small rank Tag below (e.g., "Specialist" in blue)
+5. "Facility" / "المنشأة": Facility name + type Tag (e.g., "Private Hospital" in gray)
+6. "Diagnosis" / "التشخيص": Truncated text (max 30 chars with tooltip for full text)
+7. "Status" / "الحالة": Colored antd Tag:
+   - SUBMITTED: blue "Submitted"
+   - PROCESSING: cyan "Processing" with LoadingOutlined spinning
+   - UNDER_REVIEW: orange "Under Review"
+   - DOCS_REQUESTED: purple "Docs Requested"
+   - EXAMINATION_REQUESTED: magenta "Examination" with MedicineBoxOutlined
+   - APPROVED: green "Approved" with CheckCircleOutlined
+   - PARTIALLY_APPROVED: amber/orange "Partial" with ExclamationCircleOutlined
+   - REJECTED: red "Rejected" with CloseCircleOutlined
+8. "Submitted" / "تاريخ التقديم": Date formatted (e.g., "Jun 12, 2024")
+9. "Actions" / "إجراءات": 
+   - EyeOutlined "View" button → /employee/leave/:id
+   - If DOCS_REQUESTED: PlusOutlined "Upload Docs" button (blue)
+
+Table features:
+- Sortable columns (by date, days, status)
+- Pagination (5 per page)
+- Row hover effect
+- Row click → navigate to leave detail
+- Responsive: on mobile, hide some columns
+
+Empty State (if no leaves match filter):
+- antd Empty with custom image
+- "No sick leaves found" / "لم يتم العثور على إجازات مرضية"
+- "Submit your first sick leave" button → /employee/submit-leave
+
+Show data for current logged-in employee only (filter mockSickLeaves by employee ID).
+
+===================================================
+PAGE 2: CREATE src/pages/employee/LeaveDetail.tsx
+===================================================
+
+This page shows FULL details of a single sick leave with different views based on status. It reads the leave ID from the URL parameter.
+
+TOP — STATUS BANNER (full-width, 80px height, colored background based on status):
+Each status shows different content:
+
+SUBMITTED (Blue #1890ff background, white text):
+- CheckCircleOutlined icon + "Your leave has been received and is being analyzed by our system"
+- "Submitted on [date]"
+
+PROCESSING (Cyan #13c2c2 + spinning LoadingOutlined):
+- "AI is analyzing your documents. This usually takes a few minutes..."
+- Animated progress indicator
+
+UNDER_REVIEW (Orange #fa8c16):
+- "Your leave is under review by the company doctor"
+- "Doctor: Dr. Jalal Al-Khashman"
+
+DOCS_REQUESTED (Purple #722ed1):
+- "Additional documents have been requested"
+- Card below banner showing:
+  - List of requested document types
+  - Deadline with countdown: "Deadline: June 20, 2024 (3 days remaining)"
+  - Upload button to add more documents (antd Upload)
+
+EXAMINATION_REQUESTED (Magenta #eb2f96):
+- MedicineBoxOutlined icon + "Medical Examination Required"
+- Appointment Card (white card inside banner or below):
+  - 📅 Date: "Sunday, June 22, 2024"
+  - 🕐 Time: "10:00 AM"
+  - 📍 Location: "Company Doctor Clinic, Jordan Aviation HQ, Building 2, Ground Floor"
+  - 📋 Must bring: Original certificate, All documents, Photo ID, Current medications
+  - ⚠️ Warning: "Failure to attend will result in automatic rejection (Rule 6)"
+  - Countdown timer: "In 3 days and 5 hours"
+  - Green button: "I Confirm I Will Attend" / "أؤكد حضوري"
+
+APPROVED (Green #52c41a):
+- Large CheckCircleFilled + "Approved — Full Pay"
+- "Remaining balance: 8/14 days"
+
+PARTIALLY_APPROVED (Amber #fa8c16):
+- ExclamationCircleFilled + "Partially Approved"
+- Visual progress bar showing approved vs rejected portions:
+  [████████░░░░] green=approved, red=rejected
+- "Approved: June 10 (1 day) — Full Pay"
+- "Rejected: June 11-13 (3 days) — Unpaid"
+- "Reason: GP maximum is 24 hours. Only 1 day approved per company rules."
+
+REJECTED (Red #ff4d4f):
+- CloseCircleFilled + "Rejected"
+- Reason summary: "Unapproved facility (24-hour private center)"
+
+MAIN CONTENT — Multiple Cards (antd Card, inside Row/Col layout):
+
+Card 1: "Leave Information" / "معلومات الإجازة":
+- Reference Number (large, gold): SL-2024-XXXXX
+- Submitted Date
+- Period: From → To
+- Total Duration: X days (bold)
+- Current Status badge
+
+Card 2: "Medical Information" / "المعلومات الطبية":
+- Doctor: Name + Rank badge (GP/Specialist/Consultant) + Trust score stars (★★★★☆ 0.88)
+- Facility: Name + Type badge + Trust score stars
+- If facility is blocked: Red "BLOCKED" badge
+- Specialty displayed
+
+Card 3: "Diagnosis" / "التشخيص":
+- Symptoms
+- Diagnosis
+- ICD-10 Code
+- Hospitalized: Yes/No Tag
+- Chronic Disease: Yes/No Tag
+
+Card 4: "My Comment" / "تعليقي":
+- Blue-tinted background card
+- Employee's comment text (or "No comment provided" in gray italic)
+
+Card 5: "My Documents" / "مستنداتي":
+- Grid of document thumbnails (2-3 columns)
+- Each shows: mock thumbnail placeholder (colored rectangle with document type icon), filename, classification Tag, file size
+- Document Checklist below: ✅/❌ for each required document type (same as in submit wizard)
+
+Card 6: "Company Doctor's Decision" / "قرار طبيب الشركة" (ONLY show if status is APPROVED, PARTIALLY_APPROVED, or REJECTED):
+- Decision badge (large colored Tag)
+- Medical Assessment text
+- If PARTIALLY_APPROVED:
+  - Approved Period: June 10 (1 day) — badge green "Full Pay"
+  - Rejected Period: June 11-13 (3 days) — badge red "Unpaid"
+  - Reason explanation
+  - Updated Balance: Before 8/14 → After 7/14 (1 day deducted)
+- If REJECTED:
+  - Rejection reasons list
+  - Doctor's notes
+- Instructions to Employee (if any)
+
+Card 7: "Penalty" / "العقوبة" (ONLY show if there's a penalty — REJECTED or PARTIALLY_APPROVED with violation):
+- Red left border card
+- Violation #: "1st Violation" / "المخالفة الأولى"
+- Penalty: "2 work days salary deduction" / "خصم يومي عمل من الراتب"
+- If partial: also show unpaid days
+- Applied date
+
+Card 8: "Timeline" / "الجدول الزمني":
+- antd Timeline component showing leave lifecycle:
+  - 📤 "Leave Submitted" — date/time (green dot)
+  - 🤖 "AI Analysis Complete" — date/time (blue dot)
+  - 👨‍⚕️ "Under Review by Dr. Jalal" — date/time (orange dot)
+  - ✅/❌ "Approved/Rejected by Dr. Jalal" — date/time (green/red dot)
+  - 📧 "Result email sent" — date/time (gray dot)
+- Show only relevant steps based on current status
+- Current step should be highlighted/pulsing
+
+BOTTOM SECTION:
+- "Upload Additional Documents" expandable section (antd Collapse):
+  - Upload zone for adding more supporting documents
+  - "This may help the doctor make a favorable decision"
+- "Back to My Leaves" button → /employee/my-leaves
+
+The page must handle ALL 8 statuses and show different content for each. Use the leave ID from the URL (useParams) to find the correct leave from mockData.
+
+===================================================
+UPDATE src/App.tsx:
+===================================================
+- Import MyLeaves from './pages/employee/MyLeaves'
+- Import LeaveDetail from './pages/employee/LeaveDetail'
+- Replace /employee/my-leaves PlaceholderPage with <MyLeaves />
+- Replace /employee/leave/:id PlaceholderPage with <LeaveDetail />
+
+===================================================
+UPDATE TRANSLATIONS:
+===================================================
+Add any missing translation keys to both src/i18n/en.json and src/i18n/ar.json for all new text in both pages.
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL text — no hardcoded strings
+2. LeaveDetail must handle ALL 8 statuses with different UI for each
+3. The partially approved status must show the visual bar (green approved / red rejected segments)
+4. The examination requested status must show the full appointment card with countdown
+5. Timeline component must show appropriate steps for each status
+6. Use react-router-dom useParams() to get leave ID, useNavigate() for navigation
+7. Filter leaves by current employee in MyLeaves page
+8. Responsive layout (cards stack on mobile)
+9. Full RTL support
+10. ZERO TypeScript errors
+11. Use antd components: Table, Tag, Card, Timeline, Progress, Alert, Badge, Descriptions, Upload, Collapse, Steps, Button, Row, Col, DatePicker, Select, Input, Empty, Modal, Statistic, Tooltip
+12. Use @ant-design/icons throughout
+13. Make it beautiful with the navy/gold theme, consistent spacing, subtle shadows
