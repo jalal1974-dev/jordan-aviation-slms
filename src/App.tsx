@@ -43,6 +43,11 @@ import DoctorsPage from './pages/admin/DoctorsPage';
 import CircularsPage from './pages/admin/CircularsPage';
 import PenaltiesPage from './pages/admin/PenaltiesPage';
 import ReportsPage from './pages/admin/ReportsPage';
+import CompanyRules from './pages/shared/CompanyRules';
+import ProfilePage from './pages/shared/ProfilePage';
+import NotificationsPage from './pages/shared/NotificationsPage';
+import BalancePage from './pages/employee/BalancePage';
+import ViolationsPage from './pages/employee/ViolationsPage';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './types';
 
@@ -121,7 +126,7 @@ const App: React.FC = () => {
             path="employee/balance"
             element={
               <ProtectedRoute allowedRoles={['EMPLOYEE']}>
-                <PlaceholderPage title="Leave Balance" icon={<CalendarOutlined />} />
+                <BalancePage />
               </ProtectedRoute>
             }
           />
@@ -129,7 +134,7 @@ const App: React.FC = () => {
             path="employee/violations"
             element={
               <ProtectedRoute allowedRoles={['EMPLOYEE']}>
-                <PlaceholderPage title="My Violations" icon={<WarningOutlined />} />
+                <ViolationsPage />
               </ProtectedRoute>
             }
           />
@@ -255,7 +260,7 @@ const App: React.FC = () => {
             path="rules"
             element={
               <ProtectedRoute>
-                <PlaceholderPage title="Company Rules" icon={<BookOutlined />} />
+                <CompanyRules />
               </ProtectedRoute>
             }
           />
@@ -263,7 +268,7 @@ const App: React.FC = () => {
             path="notifications"
             element={
               <ProtectedRoute>
-                <PlaceholderPage title="Notifications" icon={<BellOutlined />} />
+                <NotificationsPage />
               </ProtectedRoute>
             }
           />
@@ -271,7 +276,7 @@ const App: React.FC = () => {
             path="profile"
             element={
               <ProtectedRoute>
-                <PlaceholderPage title="My Profile" icon={<UserOutlined />} />
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

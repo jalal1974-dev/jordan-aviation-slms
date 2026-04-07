@@ -1,0 +1,202 @@
+Now build ALL remaining placeholder pages to complete the SLMS app. This is the final build session.
+
+Read existing files first:
+- src/types/index.ts, src/services/mockData.ts, src/store/*.ts
+- src/i18n/en.json and ar.json
+- Look at existing page patterns for consistency
+
+BUILD 5 PAGES:
+
+===================================================
+PAGE 1: CREATE src/pages/shared/CompanyRules.tsx
+===================================================
+
+Company sick leave rules page with 5 tabs. Accessible by ALL roles.
+
+TOP:
+- Title: "Company Rules & Regulations" / "قواعد وأنظمة الشركة" with BookOutlined
+- Subtitle: "Jordan Aviation Sick Leave Policy" / "سياسة الإجازات المرضية للأردنية للطيران"
+
+antd Tabs (5 tabs, gold active color):
+
+TAB 1: "Leave Duration Rules" / "قواعد مدة الإجازة"
+- Rule 1 Card (blue border):
+  - Title: "Rule 1: GP Maximum 24 Hours" / "القاعدة 1: الحد الأقصى لطبيب العام 24 ساعة"
+  - Icon: ClockCircleOutlined
+  - Content: "A General Practitioner (GP) can issue a maximum of 1 day (24 hours) sick leave. Any GP leave exceeding 1 day will be rejected or partially approved (1 day only)."
+  - Arabic version of the same
+  - Visual example box: ✅ "GP + 1 day = OK" | ❌ "GP + 3 days = REJECTED"
+
+- Rule 2 Card (blue border):
+  - Title: "Rule 2: Specialist Maximum 48 Hours"
+  - Content: "A Specialist can issue maximum 2 days (48 hours). Exceptions: Hospitalization OR chronic disease with full supporting documents (X-rays, lab tests, admission reports)."
+  - Visual: ✅ "Specialist + 2 days = OK" | ⚠️ "Specialist + 3 days = Needs proof" | ❌ "Specialist + 5 days (no proof) = REJECTED"
+
+TAB 2: "Facility Rules" / "قواعد المنشآت"
+- Rule 3 Card (red border):
+  - Title: "Rule 3: 24-Hour Private Centers NOT APPROVED"
+  - Content: "Private medical centers operating 24 hours are BLOCKED. Sick leaves from these facilities will be automatically rejected with a penalty applied."
+  - Red Alert: "🚫 Examples: Al-Shifa 24h Center, Night Care Center"
+  - Visual: 🚫 Large red X with blocked facility examples
+
+TAB 3: "Required Documents" / "المستندات المطلوبة"
+- Rule 4: Document Checklist Card:
+  - Always Required section:
+    ✅ Sick leave certificate
+    ✅ Financial receipt
+    ✅ Prescription
+    ✅ Facility stamp (visible)
+    ✅ Doctor stamp & signature
+  - Royal Medical Services section:
+    ✅ Medical Record Stamp — MANDATORY
+  - Condition-Specific section:
+    ✅ Stomach/respiratory/fractures → Lab tests + X-rays required
+
+TAB 4: "Penalties" / "العقوبات"
+- Rule 5 Card:
+  - Escalating penalties table (antd Table, 3 rows):
+    | Violation | Arabic | Penalty |
+    | 1st | المخالفة الأولى | 2 work days salary deduction |
+    | 2nd | المخالفة الثانية | Written Warning (إنذار) |
+    | 3rd | المخالفة الثالثة | Final Warning (إنذار نهائي) |
+  - Note: "Rejected leave period = UNPAID + penalty applied"
+  - Warning Alert: "Three violations may lead to disciplinary action"
+
+TAB 5: "Examination & Legal" / "الفحص والقانون"
+- Rule 6 Card: Company Doctor Examination
+  - "The company doctor can request an in-person examination before making a decision"
+  - "Employee MUST attend the scheduled appointment"
+  - "Failure to attend = Automatic rejection per Rule 6"
+
+- Rule 7 Card: Tampered Reports
+  - "ZERO TOLERANCE for modified or altered medical documents"
+  - "AI system detects tampering during document analysis"
+  - "Immediate rejection + disciplinary action"
+
+- Rule 8 Card: Legal Entitlement (Article 65)
+  - Table showing entitlement:
+    | Period | Pay | Requirement |
+    | First 14 days | Full Pay | Approved medical report |
+    | Next 14 days | Full Pay | Hospitalization OR medical committee |
+    | Beyond 28 days | Unpaid | Penalties may apply |
+
+===================================================
+PAGE 2: CREATE src/pages/shared/ProfilePage.tsx
+===================================================
+
+User profile page showing personal info and leave history. Accessible by ALL roles.
+
+TOP:
+- Large header card with:
+  - Avatar (large, 80px, colored)
+  - Name (24px bold) + Arabic name
+  - Employee # + Department + Title
+  - Role badge (gold)
+  - Email + Phone
+  - Join Date
+
+SECTIONS:
+
+Card 1: "Personal Information" / "المعلومات الشخصية"
+- Two column layout with antd Descriptions:
+  - Full Name (EN), Full Name (AR), Employee #, Email, Phone, Department, Title, Role, Join Date, Status
+
+Card 2: "Leave Balance" / "رصيد الإجازات"
+- Large circular Progress showing days used vs total (14)
+- Stats: Total Entitlement: 14, Used: X, Remaining: Y, Extension Used: 0/14
+- Bar visualization of usage
+
+Card 3: "Leave History Summary" / "ملخص سجل الإجازات"
+- Mini stats: Total Leaves, Approved, Rejected, Partial, Pending
+- Small recharts PieChart of leave statuses
+
+Card 4: "Violations Summary" / "ملخص المخالفات"
+- If violations: Show table of violations
+- If no violations: Green "Clean Record ✓" message
+
+===================================================
+PAGE 3: CREATE src/pages/employee/BalancePage.tsx
+===================================================
+
+Detailed leave balance page for employees.
+
+- Large donut chart showing: Used (green), Pending (blue), Remaining (gray)
+- Detailed breakdown:
+  - Annual Entitlement: 14 days
+  - Used (Approved): X days
+  - Used (Partial): X days
+  - Pending Approval: X days
+  - Remaining: X days
+  - Extension Entitlement: 14 days
+  - Extension Used: 0 days
+- Monthly usage bar chart (last 6 months)
+- History table: Each approved leave with days deducted
+
+===================================================
+PAGE 4: CREATE src/pages/employee/ViolationsPage.tsx
+===================================================
+
+Employee violations history page.
+
+- If violations exist:
+  - Warning banner showing violation count
+  - Table: Violation #, Related Leave (link), Penalty, Salary Deduction, Unpaid Days, Date
+  - Each violation as expandable card with full details
+  - Penalty escalation visual: [1st ●] → [2nd ○] → [3rd ○] showing current position
+
+- If no violations:
+  - Green success card: "Clean Record! ✓"
+  - "You have no violations. Keep up the good work!"
+  - Tips for maintaining a clean record
+
+===================================================
+PAGE 5: CREATE src/pages/shared/NotificationsPage.tsx
+===================================================
+
+Notifications page for all roles.
+
+- "Mark All as Read" button (top right)
+- antd List of notifications grouped by date:
+  - Today
+  - Yesterday
+  - This Week
+  - Earlier
+
+Each notification:
+- Icon based on type (colored): leave_submitted (blue), leave_reviewed (green), docs_requested (purple), exam_requested (magenta), result_sent (gold), penalty_applied (red), circular (blue)
+- Title + message text
+- Time ago ("2 hours ago", "yesterday")
+- Read/Unread indicator (blue dot for unread)
+- Click → navigate to related page
+- "Mark as Read" button on hover
+
+Mock 8-10 notifications of different types.
+
+===================================================
+UPDATE src/App.tsx:
+===================================================
+- Import all 5 new pages
+- Replace ALL remaining PlaceholderPage routes:
+  - /rules → CompanyRules
+  - /profile → ProfilePage
+  - /employee/balance → BalancePage
+  - /employee/violations → ViolationsPage
+  - /notifications → NotificationsPage
+
+===================================================
+UPDATE TRANSLATIONS:
+===================================================
+Add all missing keys to both en.json and ar.json.
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL text
+2. Company Rules must be comprehensive with visual examples
+3. Profile page must work for ALL roles
+4. Balance page must show accurate calculations from mock data
+5. Violations page must handle both "has violations" and "clean record" states
+6. Notifications must be grouped by date
+7. All recharts use navy/gold colors
+8. Full RTL support
+9. Responsive
+10. ZERO TypeScript errors
+11. This is the FINAL BUILD — make everything polished and complete!
