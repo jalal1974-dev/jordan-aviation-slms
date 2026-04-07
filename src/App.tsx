@@ -28,6 +28,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import PlaceholderPage from './pages/PlaceholderPage';
+import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './types';
 
@@ -74,7 +75,7 @@ const App: React.FC = () => {
             path="employee/dashboard"
             element={
               <ProtectedRoute allowedRoles={['EMPLOYEE']}>
-                <PlaceholderPage title="Employee Dashboard" icon={<DashboardOutlined />} />
+                <EmployeeDashboard />
               </ProtectedRoute>
             }
           />

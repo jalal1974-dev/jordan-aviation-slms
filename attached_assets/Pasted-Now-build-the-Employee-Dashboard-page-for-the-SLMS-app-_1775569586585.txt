@@ -1,0 +1,98 @@
+Now build the Employee Dashboard page for the SLMS app.
+
+Look at existing files first:
+- src/types/index.ts for TypeScript types
+- src/services/mockData.ts for mock data
+- src/store/authStore.ts for current user
+- src/store/leaveStore.ts for leaves data
+- src/store/notificationStore.ts for notifications
+- src/i18n/en.json and ar.json for translations (add any missing keys)
+
+CREATE src/pages/employee/EmployeeDashboard.tsx
+
+This is the main dashboard the employee sees after login. It should be a beautiful, informative page using antd components and recharts for charts.
+
+TOP SECTION - Welcome Banner:
+- Full-width card with gradient background (navy to navy-light)
+- Left side: "Welcome back, Ahmed!" / "!مرحباً بعودتك، أحمد" (white, 24px bold) + role badge + department
+- Right side: Current date + "Submit New Leave" gold button → navigates to /employee/submit-leave
+
+ROW 1 - 4 Statistics Cards (antd Row with 4 Col span=6):
+Card 1 (blue accent): "Leave Balance" / "رصيد الإجازات"
+- Large number: "8/14" (used/total) days
+- Progress bar showing usage (antd Progress)
+- "days remaining" subtitle
+- CalendarOutlined icon
+
+Card 2 (green accent): "Approved Leaves" / "الإجازات المعتمدة"
+- Count of approved leaves this year
+- CheckCircleOutlined icon (green)
+- "+1 this month" small text
+
+Card 3 (orange accent): "Pending Review" / "قيد المراجعة"  
+- Count of leaves in SUBMITTED + PROCESSING + UNDER_REVIEW status
+- ClockCircleOutlined icon (orange)
+- "Awaiting doctor review" subtitle
+
+Card 4 (red accent): "Violations" / "المخالفات"
+- Count of violations (from mock data)
+- WarningOutlined icon (red)
+- "Be careful!" subtitle if violations > 0, "Clean record ✓" if 0
+
+ROW 2 - Two columns (Col span=16 left, Col span=8 right):
+
+LEFT - "Recent Leaves" / "الإجازات الأخيرة" Card:
+- antd Table showing last 5 leaves for this employee
+- Columns: Ref# (gold link → /employee/leave/:id), Period (from-to dates), Days, Doctor Name, Status (colored Tag badge), Submitted Date
+- Status Tags with colors: APPROVED=green, REJECTED=red, PARTIALLY_APPROVED=orange, UNDER_REVIEW=blue, SUBMITTED=cyan, EXAMINATION_REQUESTED=magenta, DOCS_REQUESTED=purple
+- "View All Leaves →" link at bottom → /employee/my-leaves
+- If no leaves: Empty state "No leaves submitted yet"
+
+RIGHT - "Leave Usage" / "استخدام الإجازات" Card:
+- Small Recharts PieChart or DonutChart showing:
+  - Used Days (colored by status): Approved (green), Partially Approved (orange), Pending (blue)
+  - Remaining Days (gray)
+- Legend below chart
+- Total: "6 of 14 days used" text
+
+ROW 3 - Two columns:
+
+LEFT (Col span=12) - "Notifications" / "الإشعارات" Card:
+- antd List showing last 5 notifications
+- Each item: icon based on type + title + time ago ("2 hours ago")
+- Types: leave_submitted (blue FileOutlined), leave_reviewed (green CheckOutlined), docs_requested (purple FileAddOutlined), exam_requested (magenta MedicineBoxOutlined), penalty_applied (red WarningOutlined)
+- "View All →" link → /notifications
+- If no notifications: "No new notifications"
+
+RIGHT (Col span=12) - "Quick Actions" / "إجراءات سريعة" Card:
+- 4 large action buttons (2x2 grid):
+  - 📤 "Submit New Leave" (gold background) → /employee/submit-leave
+  - 📋 "View My Leaves" (outlined) → /employee/my-leaves  
+  - 📖 "Company Rules" (outlined) → /rules
+  - 👤 "My Profile" (outlined) → /profile
+
+ROW 4 (optional) - "Upcoming" / "القادم" Card:
+- Show if employee has EXAMINATION_REQUESTED or DOCS_REQUESTED leaves
+- If exam requested: Show appointment card with date, time, location, countdown
+- If docs requested: Show deadline and what docs are needed
+- If nothing pending: Don't show this row
+
+DESIGN REQUIREMENTS:
+1. Use antd components: Card, Row, Col, Statistic, Progress, Table, Tag, List, Button, Badge, Typography
+2. Use recharts for the pie/donut chart
+3. All text through useTranslation() — add missing translation keys to both en.json and ar.json
+4. Get current employee from authStore (useAuthStore)
+5. Get leaves from leaveStore or mockData (filter by current employee)
+6. Get notifications from notificationStore or mockData
+7. Responsive: On mobile, cards stack vertically (use antd responsive Col: xs=24, sm=24, md=12, lg=6 for stat cards)
+8. Colors: Use the CSS variables (--navy, --gold, --success, --warning, --danger)
+9. Cards should have subtle shadow and rounded corners (borderRadius: 12)
+10. Animate cards on load with fade-in effect
+11. Must support RTL layout for Arabic
+
+ALSO UPDATE src/App.tsx:
+- Replace the Employee Dashboard PlaceholderPage with the new EmployeeDashboard component
+- Import: import EmployeeDashboard from './pages/employee/EmployeeDashboard'
+- Change the /employee/dashboard route to render <EmployeeDashboard /> instead of PlaceholderPage
+
+Make sure there are ZERO TypeScript errors and the page looks professional and polished.
