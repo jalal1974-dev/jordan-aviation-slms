@@ -1,0 +1,174 @@
+Now build Part 2 of the Doctor Leave Review page — the RIGHT COLUMN with AI Analysis and the Doctor's Decision Form.
+
+Read the existing file first:
+- src/pages/doctor/LeaveReview.tsx (the page you just built in Part 1)
+- src/types/index.ts for types
+- src/services/mockData.ts for mock data
+
+UPDATE src/pages/doctor/LeaveReview.tsx
+
+Replace the placeholder right column card ("Coming in Part 2...") with the full AI Analysis and Decision Form.
+
+=== RIGHT COLUMN (Col span=10) ===
+
+CARD 7: "AI Analysis" / "تحليل الذكاء الاصطناعي" (gold top border)
+
+4 Circular Gauge Charts (2x2 grid using antd Row/Col):
+Use antd Progress type="circle" (width 100px each) with custom colors:
+- Compliance Score: 72/100 (yellow #faad14, label "Compliance" / "الامتثال")
+- Justifiability Score: 85/100 (green #52c41a, label "Justifiability" / "التبرير الطبي")
+- Risk Score: 35/100 (green #52c41a — low risk is good, label "Risk" / "المخاطر")
+- Documentation Score: 75/100 (yellow #faad14, label "Documentation" / "التوثيق")
+Color logic: green if >75, yellow if 50-75, red if <50 (for Risk: green if <40, yellow 40-70, red >70)
+
+AI Recommendation Tag (below gauges):
+- Large colored Tag based on analysis:
+  - If compliance>70 AND risk<40: 🟢 "APPROVE" / "اعتماد" (green tag)
+  - If compliance 50-70 OR risk 40-60: 🟡 "REVIEW REQUIRED" / "مطلوب مراجعة" (yellow tag)
+  - If compliance<50 OR risk>60: 🔴 "REJECT" / "رفض" (red tag)
+- Mock: Show "🟡 REVIEW REQUIRED" for the current leave
+
+Rule Violations Section (antd Collapse panel, expandable):
+- Title: "Rule Violations & Checks" / "مخالفات القواعد والفحوصات"
+- List of violations with colored severity icons:
+  - 🟡 WARNING: "Specialist exceeded 48 hours (3 days, maximum is 2 days)" / "تجاوز الاختصاصي 48 ساعة (3 أيام، الحد الأقصى يومان)" — WarningFilled yellow
+  - ✅ PASS: "Diagnosis consistent with symptoms and documents" / "التشخيص متوافق مع الأعراض والمستندات" — CheckCircleFilled green
+  - ✅ PASS: "Receipt timestamp supports visit claim" / "ختم الوصل يدعم ادعاء الزيارة" — CheckCircleFilled green
+  - ℹ️ INFO: "First visit to this facility by this employee" / "أول زيارة لهذه المنشأة من هذا الموظف" — InfoCircleFilled blue
+- Each item shows severity Tag + description text
+
+AI Conclusion (below violations):
+- Gray background box with italic text
+- "Based on the analysis, the leave request shows moderate compliance. The specialist has issued a 3-day leave which exceeds the 48-hour maximum. However, the diagnosis appears medically justified with supporting documents. Recommend partial approval (2 days) unless hospitalization evidence is provided."
+- Arabic version below
+
+CARD 8: "Employee History" / "سجل الموظف" (collapsible, default collapsed)
+- antd Collapse panel
+- Last 3 leaves mini timeline (antd Timeline, compact):
+  - "SL-2024-00089 — Approved, 2 days, Gastritis" (green dot)
+  - "SL-2024-00086 — Approved, 1 day, Common Cold" (green dot)
+  - "SL-2024-00084 — Rejected, 2 days, Blocked Facility" (red dot)
+- Small note: "3 leaves this year, 1 violation"
+
+CARD 9: ⭐ "Doctor's Decision" / "قرار الطبيب" ⭐ (MOST IMPORTANT — gold 2px border, larger padding)
+
+antd Radio.Group (large, vertical layout). Each option is a bordered card-like radio button:
+
+○ APPROVE ALL / اعتماد كامل (CheckCircleOutlined green icon)
+○ APPROVE PARTIAL / اعتماد جزئي (ExclamationCircleOutlined orange icon)
+○ APPROVE & OVERRIDE RULES / اعتماد وتجاوز القواعد (ThunderboltOutlined yellow icon)
+○ REJECT ALL / رفض كامل (CloseCircleOutlined red icon)
+○ REQUEST EXAMINATION / طلب فحص شخصي (MedicineBoxOutlined magenta icon)
+○ REQUEST DOCUMENTS / طلب معززات إضافية (FileAddOutlined purple icon)
+○ REFER TO COMMITTEE / إحالة للجنة الطبية (TeamOutlined blue icon)
+
+Each radio should be styled as a card (border, padding 12px, borderRadius 8px, margin-bottom 8px). Selected option should have colored left border (green for approve, red for reject, etc.) and light background tint.
+
+CONDITIONAL SECTIONS (show below radio group based on selected decision):
+
+IF "APPROVE PARTIAL" selected:
+- Amber-bordered Card showing:
+  - Visual Bar: antd Progress with both colors — green portion (approved days) + red portion (rejected days)
+  - Original Leave: "June 1-3, 2024 (3 days)" — gray, read-only
+  - Approved Period: antd DatePicker (From) + DatePicker (To) — default to first 2 days
+  - Auto-calculated: "Approved: 2 days" green badge + "Rejected: 1 day" red badge
+  - "Rejected days will be UNPAID" red text warning
+  - Reason radio group:
+    ○ "Per company rules — Specialist maximum 48 hours" (pre-selected)
+    ○ "Based on my medical assessment"
+    ○ "Insufficient documentation for full period"
+    ○ "Other reason"
+  - "Detailed Explanation" TextArea (REQUIRED, 4 rows)
+
+IF "REJECT ALL" selected:
+- Red-bordered Card showing:
+  - Rejection Reasons checkboxes (multiple select):
+    ☐ Missing required documents
+    ☐ GP exceeded 24-hour maximum
+    ☐ Specialist exceeded 48-hour maximum
+    ☐ Blocked/unapproved facility
+    ☐ Tampered/altered documents
+    ☐ No financial receipt
+    ☐ No prescription
+    ☐ Missing stamps (facility/doctor)
+    ☐ No lab results (when required)
+    ☐ No imaging (when required)
+    ☐ Medically unjustified
+    ☐ Exceeded annual entitlement
+    ☐ Other
+  - "Additional Rejection Notes" TextArea (4 rows)
+
+IF "APPROVE & OVERRIDE RULES" selected:
+- Yellow warning Card:
+  - Alert: "You are overriding the following rule violations:" with list of current violations
+  - "As company doctor, you have final medical authority on leave decisions."
+  - "Override Reason" TextArea (REQUIRED) — "Explain why you are overriding the rules..."
+
+IF "REQUEST EXAMINATION" selected:
+- Blue-bordered Card with MedicineBoxOutlined icon:
+  - Examination Date: antd DatePicker (future dates only)
+  - Examination Time: antd Select (8:00 AM to 3:00 PM, 30-min intervals)
+  - Location: antd Input, pre-filled "Company Doctor Clinic, Jordan Aviation HQ, Building 2"
+  - Arabic location pre-filled: "عيادة طبيب الشركة، مقر الأردنية للطيران، المبنى 2، الطابق الأرضي"
+  - Purpose: TextArea (REQUIRED) — "Describe what you want to evaluate..."
+  - Must Bring: Checkboxes (4 pre-checked): Original certificate, All documents, Photo ID, Current medications + "Other" text input
+  - Note to Employee: TextArea pre-filled "Please attend on time. Failure to attend will result in automatic rejection per Rule 6."
+  - Red info Alert: "After submitting: (1) Status→EXAMINATION_REQUESTED (2) Admin sends appointment email (3) You decide after exam (4) No-show → Auto Rejection"
+
+IF "REQUEST DOCUMENTS" selected:
+- Purple-bordered Card:
+  - Document type checkboxes: Lab Results, X-ray/Imaging, Hospital Report, Admission Report, Discharge Summary, Medical Committee Report, Other
+  - Instructions TextArea
+  - Deadline: antd DatePicker (default 48 hours from now)
+
+IF "REFER TO COMMITTEE" selected:
+- Blue Card:
+  - Referral Reason TextArea (REQUIRED)
+  - Urgency: antd Radio — Normal, Urgent, Critical
+
+ALWAYS VISIBLE SECTION (below conditional cards):
+- Divider
+- "Medical Assessment" / "التقييم الطبي" — large TextArea (6 rows, REQUIRED for all decisions)
+- "Is this leave medically justified?" / "هل هذه الإجازة مبررة طبياً؟" — 3-way antd Radio.Group: "Yes" / "نعم" (green), "No" / "لا" (red), "Partially" / "جزئياً" (yellow)
+- "Instructions to Employee" / "تعليمات للموظف" — TextArea (4 rows, optional)
+- "Recommendations to Admin" / "توصيات للإدارة" — TextArea (4 rows, optional)
+
+COLLAPSIBLE: "Blacklist Recommendation" / "توصية بالحظر" (antd Collapse):
+- antd Switch: "Blacklist this doctor?" + reason TextArea (shows when switched on)
+- antd Switch: "Blacklist this facility?" + reason TextArea (shows when switched on)
+
+SUBMIT BUTTON:
+- Large gold Button, full-width, CheckOutlined icon
+- Text: "Submit Decision" / "إرسال القرار"
+- Disabled until: a decision radio is selected + medical assessment is filled
+- On click: Show antd Modal confirmation:
+  - Title: "Confirm Your Decision" / "تأكيد قرارك"
+  - Summary of decision (decision type, approved/rejected days if partial, key reasons)
+  - "This action cannot be undone" warning
+  - "Confirm" gold button + "Cancel" button
+- After confirm: Show success message + navigate to /doctor/queue
+
+=== UPDATE TRANSLATIONS ===
+Add all missing translation keys for:
+- AI analysis labels (compliance, justifiability, risk, documentation, recommendation)
+- Decision options (approve all, approve partial, reject, examination, documents, committee, override)
+- Conditional form labels (partial approval, rejection reasons, examination details)
+- Medical assessment, justified question, instructions, recommendations
+- Blacklist section
+- Submit and confirmation modal
+- All in both en.json and ar.json
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL text
+2. Only ONE radio can be selected at a time (Radio.Group)
+3. Conditional sections must smoothly appear/disappear based on selection (use CSS transitions or antd animations)
+4. Form validation: medical assessment required, specific fields required based on decision type
+5. The 4 AI gauge circles must use dynamic colors based on score thresholds
+6. Partial approval must auto-calculate approved vs rejected days
+7. Decision radio buttons must look like selectable cards (bordered, highlighted when selected)
+8. The submit button should be disabled until minimum required fields are filled
+9. Full RTL support for Arabic
+10. Responsive on mobile (right column stacks below left column)
+11. ZERO TypeScript errors
+12. Use existing patterns from the left column for consistency
+13. The decision form must feel authoritative and professional — this is where the doctor makes critical medical decisions
