@@ -32,6 +32,8 @@ import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import SubmitLeave from './pages/employee/SubmitLeave';
 import MyLeaves from './pages/employee/MyLeaves';
 import LeaveDetail from './pages/employee/LeaveDetail';
+import DoctorDashboard from './pages/doctor/DoctorDashboard';
+import ReviewQueue from './pages/doctor/ReviewQueue';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './types';
 
@@ -128,7 +130,7 @@ const App: React.FC = () => {
             path="doctor/dashboard"
             element={
               <ProtectedRoute allowedRoles={['COMPANY_DOCTOR']}>
-                <PlaceholderPage title="Doctor Dashboard" icon={<DashboardOutlined />} />
+                <DoctorDashboard />
               </ProtectedRoute>
             }
           />
@@ -136,7 +138,7 @@ const App: React.FC = () => {
             path="doctor/queue"
             element={
               <ProtectedRoute allowedRoles={['COMPANY_DOCTOR']}>
-                <PlaceholderPage title="Review Queue" icon={<UnorderedListOutlined />} />
+                <ReviewQueue />
               </ProtectedRoute>
             }
           />

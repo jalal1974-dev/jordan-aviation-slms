@@ -1,0 +1,214 @@
+Now build the Company Doctor Dashboard and Review Queue pages for the SLMS app.
+
+Read existing files first:
+- src/types/index.ts for types and enums
+- src/services/mockData.ts for mock data (employees, leaves, doctors, facilities)
+- src/store/authStore.ts for current user
+- src/store/leaveStore.ts for leaves data
+- src/store/notificationStore.ts for notifications
+- src/i18n/en.json and ar.json for translations
+
+BUILD 2 PAGES:
+
+===================================================
+PAGE 1: CREATE src/pages/doctor/DoctorDashboard.tsx
+===================================================
+
+The company doctor's main dashboard showing workload overview and pending reviews.
+
+TOP - Welcome Banner:
+- Navy gradient card (same style as employee dashboard)
+- "Welcome, Dr. Jalal Al-Khashman" / "مرحباً، د. جلال الخشمان"
+- Role: "Company Doctor" / "طبيب الشركة" badge (gold)
+- Today's date
+- Right side: "Review Queue" gold button → /doctor/queue
+
+ROW 1 - 4 Statistics Cards (antd Row, Col span=6):
+Card 1 (orange accent, UnorderedListOutlined): "Pending Review" / "بانتظار المراجعة"
+- Count of leaves with status SUBMITTED + UNDER_REVIEW + PROCESSING from mockData
+- "Requires your attention" / "يتطلب انتباهك" subtitle
+
+Card 2 (magenta accent, MedicineBoxOutlined): "Examination Requests" / "طلبات الفحص"
+- Count of EXAMINATION_REQUESTED leaves
+- "Scheduled examinations" subtitle
+
+Card 3 (green accent, CheckCircleOutlined): "Approved This Month" / "معتمدة هذا الشهر"
+- Count of APPROVED + PARTIALLY_APPROVED leaves (mock: 5)
+- "+2 today" small text
+
+Card 4 (red accent, CloseCircleOutlined): "Rejected This Month" / "مرفوضة هذا الشهر"
+- Count of REJECTED leaves (mock: 2)
+
+ROW 2 - Two columns (Col span=16 left, Col span=8 right):
+
+LEFT - "Review Queue Preview" / "معاينة طابور المراجعة" Card:
+- antd Table showing leaves needing review
+- Filter mock data: show leaves with status SUBMITTED, PROCESSING, UNDER_REVIEW, EXAMINATION_REQUESTED, DOCS_REQUESTED
+- Columns:
+  1. Priority: Colored circle (🔴 red if >3 days or blocked facility or GP>1day, 🟡 yellow if specialist>2days or missing docs, 🟢 green for normal)
+  2. Ref#: Gold link → /doctor/review/:id
+  3. Employee: Name + Department below in gray
+  4. Days: Number (bold, red if >3)
+  5. Doctor Rank: Tag (GP=gray, Specialist=blue, Consultant=purple)
+  6. Status: Colored Tag matching leave status
+  7. Actions: Gold "Review" button → /doctor/review/:id
+- Sort by priority (high first)
+- Max 5 rows
+- "View Full Queue →" link at bottom → /doctor/queue
+
+RIGHT - Two stacked cards:
+
+Card A: "Today's Examinations" / "فحوصات اليوم":
+- Check if any EXAMINATION_REQUESTED leaves exist
+- If yes: Show card with:
+  - 🕐 Time: "10:00 AM"
+  - 👤 Employee: "Omar Al-Rashid (EMP-003)"
+  - 📋 Ref: "SL-2024-00087"
+  - 🏥 Reason: "Back Pain — 4 days specialist leave"
+  - Gold button: "Start Examination" → /doctor/review/:id
+- If no exams: Show "No examinations scheduled today ✓" with green check
+
+Card B: "Monthly Statistics" / "إحصائيات الشهر":
+- Simple stats with antd Progress bars:
+  - Approved: 15 (green bar, 60%)
+  - Partially Approved: 3 (amber bar, 12%)
+  - Rejected: 5 (red bar, 20%)
+  - Pending: 2 (blue bar, 8%)
+  - Total Reviewed: 25
+- Or use a small recharts BarChart
+
+ROW 3 - Two columns (Col span=12 each):
+
+LEFT - "Recent Decisions" / "القرارات الأخيرة":
+- antd Timeline showing last 5 decisions made by this doctor:
+  - ✅ green dot: "Approved Ahmed Al-Ahmad's leave (SL-2024-00089) — 2 days, Acute Gastritis" + "2 hours ago"
+  - ⚠️ amber dot: "Partially approved Fatima Al-Hassan's leave (SL-2024-00088) — 1 of 4 days, GP exceeded 24h" + "5 hours ago"
+  - ❌ red dot: "Rejected Ahmed Al-Ahmad's leave (SL-2024-00084) — Blocked 24h facility" + "2 days ago"
+  - ✅ green dot: "Approved Sara Al-Momani's leave (SL-2024-00085) — 2 days, Migraine" + "3 days ago"
+  - ✅ green dot: "Approved Fatima Al-Hassan's leave (SL-2024-00082) — 1 day, Headache" + "1 week ago"
+
+RIGHT - "Alerts & Flags" / "تنبيهات وعلامات":
+- antd List with important alerts:
+  - 🔴 red AlertFilled: "Night Care Center — 10 flagged leaves out of 15. Consider blacklisting." + "High Risk"
+  - 🔴 red AlertFilled: "Dr. Unknown Night Center — Trust score 0.30. 10 of 15 leaves flagged." + "Low Trust"
+  - 🟡 yellow WarningFilled: "Omar Al-Rashid — Examination scheduled for June 22, 2024" + "In 3 days"
+  - 🟡 yellow WarningFilled: "SL-2024-00081 — Documents requested 3 days ago, deadline approaching" + "Urgent"
+  - ℹ️ blue InfoCircleFilled: "Ibn Sina Clinic — New facility, first appearance in system" + "New"
+  - ℹ️ blue InfoCircleFilled: "Dr. Layla Mahmoud — New doctor, first leave issued" + "New"
+- Each alert is clickable (navigates to relevant page)
+
+===================================================
+PAGE 2: CREATE src/pages/doctor/ReviewQueue.tsx
+===================================================
+
+Full review queue with advanced filtering, priority sorting, and expandable rows.
+
+TOP SECTION:
+- Title: "Review Queue" / "قائمة المراجعة" with UnorderedListOutlined icon
+- Subtitle showing count: "X leaves awaiting your review" / "X إجازات بانتظار مراجعتك"
+- Right side: antd Segmented control with 5 tabs:
+  "All" / "الكل" | "🔴 High Priority" / "أولوية عالية" | "Pending" / "معلقة" | "🩺 Examination" / "فحص" | "📄 Docs Requested" / "مطلوب مستندات"
+
+FILTER BAR (antd Card, Row with Cols):
+- Status: antd Select (multiple mode), options: Submitted, Processing, Under Review, Examination Requested, Docs Requested
+- Department: antd Select, options from mock departments
+- Doctor Rank: antd Select, options: GP, Resident, Specialist, Consultant
+- Days Range: antd Select, options: "1 day", "2-3 days", "4-7 days", "7+ days"
+- Date Range: antd DatePicker.RangePicker
+- Search: antd Input.Search (placeholder: "Search by ref#, employee, or doctor")
+- "Clear Filters" text button
+
+SUMMARY BAR (below filters):
+- Row of colored stat pills:
+  - "🔴 X High Priority" (red background)
+  - "🟡 X Medium" (yellow background)
+  - "🟢 X Normal" (green background)
+  - "🩺 X Examination" (magenta background)
+  - "📄 X Docs Pending" (purple background)
+
+MAIN TABLE (antd Table, full featured):
+Columns:
+1. "Priority" / "الأولوية": Colored circle with tooltip explaining why
+   - 🔴 HIGH: blocked facility, GP>1day, tampering suspected, >4 days
+   - 🟡 MEDIUM: specialist>2days, missing required docs, repeat pattern
+   - 🟢 NORMAL: within all rules
+2. "Ref#" / "المرجع": Gold colored, clickable → /doctor/review/:id
+3. "Employee" / "الموظف": Avatar circle (colored, first letter) + Name (bold) + Department below (gray, small)
+4. "Period" / "الفترة": From → To dates
+5. "Days" / "الأيام": Number in circle badge. Bold red if >3 days, bold orange if >2, normal green if ≤2
+6. "Doctor" / "الطبيب": Name + Rank Tag below (GP=gray tag, Specialist=blue tag, Consultant=purple tag)
+7. "Facility" / "المنشأة": Name + Type Tag below + Trust score stars (★★★★☆)
+   - If blocked facility: 🚫 "BLOCKED" red tag instead of stars
+8. "Diagnosis" / "التشخيص": Text truncated to 25 chars with Tooltip for full text
+9. "AI Risk" / "المخاطر": Colored Tag:
+   - risk < 30: green "Low" / "منخفض"
+   - risk 30-70: yellow "Medium" / "متوسط"
+   - risk > 70: red "High" / "مرتفع"
+10. "Status" / "الحالة": Colored antd Tag:
+    - SUBMITTED: blue
+    - PROCESSING: cyan with LoadingOutlined
+    - UNDER_REVIEW: orange
+    - EXAMINATION_REQUESTED: magenta with MedicineBoxOutlined
+    - DOCS_REQUESTED: purple
+11. "Flags" / "علامات": Multiple small icon badges in a row:
+    - 🏖️ if leave is adjacent to weekend (Tooltip: "Weekend Adjacent")
+    - 🎊 if leave is adjacent to holiday (Tooltip: "Holiday Adjacent")
+    - ⚠️ if rule violations exist (Tooltip: shows violation text)
+    - 🔄 if employee has >3 leaves this year (Tooltip: "Frequent Leave Pattern")
+    - 📋 if documents incomplete (Tooltip: "Missing Documents")
+    Mock some of these flags on different leaves
+12. "Actions" / "إجراءات": 
+    - Gold "Review" Button → /doctor/review/:id
+    - antd Dropdown "..." with menu: "View Employee History", "Flag for Follow-up", "Mark as Urgent"
+
+Table features:
+- ALL columns sortable
+- Row click → navigate to /doctor/review/:id
+- Row hover effect (light gold background)
+- Row background tinting: light pink for HIGH priority, light yellow for MEDIUM priority
+- Expandable rows (click expand icon): Shows quick preview panel:
+  - Row layout with 4 mini AI score gauges: Compliance, Justifiability, Risk, Documentation (circular Progress components, small)
+  - Rule violations list (bullet points, colored by severity)
+  - Employee comment preview (first 200 chars, italic)
+  - "Full Review →" gold link
+- Pagination (10 per page with page size selector)
+- Table footer: "Showing X-Y of Z leaves"
+- Sticky header on scroll
+
+Empty state (if no leaves match filters):
+- antd Empty with "No leaves matching your filters" message
+- "Clear Filters" button
+
+===================================================
+UPDATE src/App.tsx:
+===================================================
+- Import DoctorDashboard from './pages/doctor/DoctorDashboard'
+- Import ReviewQueue from './pages/doctor/ReviewQueue'
+- Replace /doctor/dashboard PlaceholderPage with <DoctorDashboard />
+- Replace /doctor/queue PlaceholderPage with <ReviewQueue />
+
+===================================================
+UPDATE TRANSLATIONS:
+===================================================
+Add any missing translation keys to both src/i18n/en.json and src/i18n/ar.json for:
+- Doctor dashboard section (welcome, stats, alerts, schedule, decisions)
+- Review queue section (filters, priorities, table columns, expandable content)
+- Priority labels, risk levels, flag tooltips
+- All button text and status labels
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL visible text — no hardcoded strings
+2. Priority calculation must be DYNAMIC based on: doctor rank + days + facility blocked status + AI risk score + document completeness
+3. Show ALL leaves that need doctor attention (SUBMITTED, PROCESSING, UNDER_REVIEW, EXAMINATION_REQUESTED, DOCS_REQUESTED) from mockData — not filtered by employee
+4. Trust score stars display (★★★★☆ format)
+5. AI Risk score from leave.aiAnalysis.riskScore
+6. Expandable rows in ReviewQueue with mini AI gauges
+7. Timeline in dashboard shows recent decisions with colored dots
+8. Alerts section with different severity levels
+9. Full RTL support for Arabic
+10. Responsive (cards stack on mobile)
+11. ZERO TypeScript errors
+12. Use antd: Card, Row, Col, Table, Tag, Timeline, Progress, Badge, Statistic, List, Alert, Segmented, Select, DatePicker, Input, Button, Tooltip, Dropdown, Empty, Avatar
+13. Use @ant-design/icons throughout
+14. Use recharts if needed for charts
+15. Navy/gold theme consistent with rest of app

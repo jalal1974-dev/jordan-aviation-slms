@@ -93,6 +93,14 @@ export interface UploadedDocument {
   uploadedAt: Date;
 }
 
+export interface AIAnalysis {
+  riskScore: number;
+  compliance: number;
+  justifiability: number;
+  documentation: number;
+  ruleViolations?: string[];
+}
+
 export interface SickLeave {
   id: string;
   refNumber: string;
@@ -112,6 +120,7 @@ export interface SickLeave {
   documents: UploadedDocument[];
   wasHospitalized: boolean;
   isChronicDisease: boolean;
+  aiAnalysis?: AIAnalysis;
   companyDoctorId?: string;
   companyDoctorDecision?: string;
   companyDoctorAssessment?: string;
