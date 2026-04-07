@@ -1,0 +1,244 @@
+Now build the Admin Dashboard and Send Results functionality for the SLMS app.
+
+Read existing files first:
+- src/types/index.ts for types and enums
+- src/services/mockData.ts for mock data
+- src/store/authStore.ts, leaveStore.ts, notificationStore.ts
+- src/i18n/en.json and ar.json for translations
+- Look at src/pages/employee/EmployeeDashboard.tsx and src/pages/doctor/DoctorDashboard.tsx for styling patterns
+
+BUILD 2 PAGES + 1 COMPONENT:
+
+===================================================
+PAGE 1: CREATE src/pages/admin/AdminDashboard.tsx
+===================================================
+
+The HR Manager's main dashboard focused on executing doctor decisions and system overview.
+
+TOP - Welcome Banner:
+- Navy gradient card (same style as other dashboards)
+- "Welcome, Rania Qasim" / "مرحباً، رانيا قاسم"
+- Role: "HR Manager" / "مدير الموارد البشرية" badge (gold)
+- Today's date
+
+ROW 1 - 4 Statistics Cards (antd Row, Col span=6):
+Card 1 (blue): "Total Employees" / "إجمالي الموظفين"
+- Count: 2000 (from company size)
+- TeamOutlined icon
+- "Active workforce" subtitle
+
+Card 2 (orange): "Pending Actions" / "إجراءات معلقة"
+- Count of leaves needing admin action (doctor decided but email not sent yet)
+- Mock: 3 pending
+- ExclamationCircleOutlined icon
+- "Requires your attention" subtitle
+
+Card 3 (green): "Leaves This Month" / "إجازات هذا الشهر"
+- Total leaves submitted this month
+- Mock: 10
+- FileTextOutlined icon
+
+Card 4 (red): "Active Penalties" / "عقوبات نشطة"
+- Count of penalties applied
+- Mock: 2
+- WarningOutlined icon
+
+ROW 2 - "NEEDS YOUR ACTION" Panel (RED border, top priority!) ⭐:
+Title: "⚠️ Needs Your Action" / "⚠️ يتطلب إجراءك" with red AlertFilled icon
+This is the MOST IMPORTANT section — shows items the admin must act on.
+
+3 Sub-sections inside (antd Tabs or stacked cards):
+
+TAB/SECTION 1: "Pending Result Emails" / "رسائل نتائج معلقة" (Badge count)
+- antd Table:
+  Columns: Ref#, Employee Name, Doctor Decision (colored Tag: APPROVED green, PARTIALLY_APPROVED amber, REJECTED red), Decision Date, Actions
+- Mock data rows:
+  1. SL-2024-00089: Ahmed, APPROVED, June 12 → "Send Result" gold button
+  2. SL-2024-00088: Fatima, PARTIALLY_APPROVED, June 11 → "Send Result" gold button
+  3. SL-2024-00084: Ahmed, REJECTED, March 16 → "Send Result" gold button
+- "Send Result" button opens the SendResultModal (built below)
+
+TAB/SECTION 2: "Pending Examination Emails" / "رسائل فحوصات معلقة" (Badge count)
+- antd Table:
+  Columns: Ref#, Employee, Exam Date, Exam Time, Location, Actions
+- Mock data:
+  1. SL-2024-00087: Omar, June 22, 10:00 AM, Company Clinic → "Send Exam Email" blue button
+
+TAB/SECTION 3: "Blacklist Recommendations" / "توصيات بالحظر" (Badge count)
+- antd Table:
+  Columns: Type (Doctor/Facility icon), Name, Recommended By, Reason (truncated), Actions
+- Mock data:
+  1. Facility: "Night Care Center", By: Dr. Jalal, Reason: "24h center, 10 flagged leaves" → "Execute Blacklist" red button + "Dismiss" gray button
+
+ROW 3 - Two columns (Col span=12 each):
+
+LEFT - "Recent Activity" / "النشاط الأخير":
+- antd Timeline showing last 8 system activities:
+  - "Dr. Jalal approved Ahmed's leave (SL-2024-00089)" — green dot, 2h ago
+  - "Dr. Jalal partially approved Fatima's leave (SL-2024-00088)" — amber dot, 5h ago
+  - "Result email sent to Ahmed for SL-2024-00086" — blue dot, 1 day ago
+  - "Penalty applied: Ahmed — 1st violation (SL-2024-00084)" — red dot, 2 days ago
+  - "Dr. Jalal rejected Ahmed's leave (SL-2024-00084)" — red dot, 2 days ago
+  - "Sara submitted new leave (SL-2024-00080)" — cyan dot, 3 days ago
+  - "New circular published: Updated sick leave policy" — purple dot, 1 week ago
+  - "Omar's documents requested (SL-2024-00081)" — purple dot, 1 week ago
+
+RIGHT - "System Overview" / "نظرة عامة على النظام":
+- 4 mini stat rows with antd Progress bars:
+  - Approved Leaves: 45 (green bar, 60%)
+  - Partially Approved: 8 (amber bar, 10%)
+  - Rejected: 12 (red bar, 16%)
+  - Pending: 10 (blue bar, 14%)
+- Divider
+- "Top Flagged Facilities" mini list:
+  1. 🚫 Night Care Center — 10 flags (red)
+  2. 🚫 Al-Shifa 24h Center — 8 flags (red)
+  3. ⚠️ Zarqa Health Center — 2 flags (yellow)
+- "Top Flagged Doctors" mini list:
+  1. 🚨 Dr. Unknown Night Center — 10 flags, Trust 0.30 (red)
+  2. ⚠️ Dr. Noor Ibrahim — 3 flags, Trust 0.75 (yellow)
+
+ROW 4 (Col span=12 each):
+
+LEFT - "Leave Distribution by Department" / "توزيع الإجازات حسب القسم":
+- recharts BarChart showing leaves per department:
+  - Flight Ops: 8, Cabin Crew: 6, Engineering: 5, Ground: 4, Commercial: 3, Others: 4
+- Horizontal bars, navy/gold colors
+
+RIGHT - "Monthly Trend" / "الاتجاه الشهري":
+- recharts LineChart showing leaves per month (last 6 months):
+  - Jan: 5, Feb: 8, Mar: 12, Apr: 6, May: 9, Jun: 10
+- Gold line with dot markers
+
+===================================================
+COMPONENT: CREATE src/components/admin/SendResultModal.tsx
+===================================================
+
+This modal opens when admin clicks "Send Result" button. It shows an email preview that the admin can review before sending.
+
+Props: visible: boolean, onClose: () => void, leave: SickLeave (the leave object)
+
+antd Modal (width: 700px):
+Title: "Send Leave Result to Employee" / "إرسال نتيجة الإجازة للموظف"
+
+EMAIL PREVIEW CARD (bordered, looks like an email):
+
+Header section:
+- To: [employee email] (e.g., ahmed.ahmad@jordanaviation.jo)
+- Subject: "Sick Leave Result — SL-2024-XXXXX" / "نتيجة الإجازة المرضية — SL-2024-XXXXX"
+- From: "HR Department, Jordan Aviation" / "إدارة الموارد البشرية، الأردنية للطيران"
+
+Body section (different based on decision):
+
+IF APPROVED:
+- Green header bar with CheckCircleFilled: "Your sick leave has been APPROVED" / "تم اعتماد إجازتك المرضية"
+- Details: Reference #, Period, Days, Doctor, Facility
+- "This leave is covered under full pay as per company policy."
+- Updated Balance: "Remaining: X/14 days"
+- Doctor's instructions (if any)
+- "View Details" link
+
+IF PARTIALLY_APPROVED:
+- Amber header bar with ExclamationCircleFilled: "Your sick leave has been PARTIALLY APPROVED"
+- Approved Period: June 10 (1 day) — "Full Pay" green badge
+- Rejected Period: June 11-13 (3 days) — "Unpaid" red badge
+- Reason: "GP maximum is 24 hours per company rules"
+- Penalty Applied: "1st Violation — 2 work days salary deduction + 3 unpaid days"
+- Updated Balance: Before 8/14 → After 7/14
+- Doctor's instructions
+- "View Details" link
+
+IF REJECTED:
+- Red header bar with CloseCircleFilled: "Your sick leave has been REJECTED"
+- Rejection Reason: "Unapproved facility (24-hour private center)"
+- Penalty: "1st Violation — 2 work days salary deduction"
+- "The leave period is counted as unpaid absence."
+- Doctor's instructions
+- Appeal process info (if applicable)
+- "View Details" link
+
+Footer: Professional signature
+"Jordan Aviation — Human Resources Department"
+"إدارة الموارد البشرية — الأردنية للطيران"
+
+MODAL BUTTONS (bottom):
+- "Edit Email" outlined button (toggles to edit mode — optional, can just be a note "Email content is auto-generated")
+- "Send Email" gold Button (SendOutlined icon) — on click: show success notification "Email sent successfully to [employee email]" + close modal + mark as sent
+- "Cancel" button
+
+===================================================
+PAGE 2: CREATE src/pages/admin/AllLeaves.tsx
+===================================================
+
+A comprehensive table showing ALL sick leaves in the system with advanced filtering.
+
+TOP:
+- Title: "All Sick Leaves" / "جميع الإجازات المرضية" with FileTextOutlined
+- Subtitle: "Manage and track all employee sick leave requests"
+- Right: "Export Report" outlined button (DownloadOutlined) — mock only, shows success message
+
+FILTER BAR (Card):
+- Status: antd Select multiple (all 8 statuses)
+- Employee: antd Select (searchable, from mock employees)
+- Department: antd Select
+- Doctor: antd Select (from mock external doctors)
+- Facility: antd Select (from mock facilities)
+- Date Range: DatePicker.RangePicker
+- Search: Input.Search
+- "Clear Filters" + "Apply Filters" buttons
+
+STATISTICS ROW (8 colored pills):
+- Total: X (gray), Submitted: X (blue), Processing: X (cyan), Under Review: X (orange), Docs Requested: X (purple), Exam Requested: X (magenta), Approved: X (green), Partial: X (amber), Rejected: X (red)
+
+MAIN TABLE (antd Table):
+Columns:
+1. Ref# (gold link → opens leave detail or review page based on role)
+2. Employee (name + department)
+3. Period (from-to)
+4. Days
+5. Doctor (name + rank tag)
+6. Facility (name + type tag)
+7. Diagnosis (truncated)
+8. Status (colored Tag)
+9. Decision (if decided: colored Tag showing doctor's decision)
+10. Admin Status: Tag showing "Email Sent" green / "Email Pending" red / "N/A" gray
+11. Submitted Date
+12. Actions: "View" button, "Send Result" button (if decision made but email not sent)
+
+Features:
+- All columns sortable
+- Pagination (10 per page)
+- Show ALL mock leaves (not filtered by employee)
+- Row click → navigate to detail
+
+===================================================
+UPDATE src/App.tsx:
+===================================================
+- Import AdminDashboard from './pages/admin/AdminDashboard'
+- Import AllLeaves from './pages/admin/AllLeaves'
+- Replace /admin/dashboard PlaceholderPage with <AdminDashboard />
+- Replace /admin/leaves PlaceholderPage with <AllLeaves />
+
+===================================================
+UPDATE TRANSLATIONS:
+===================================================
+Add all missing keys to both en.json and ar.json for:
+- Admin dashboard (welcome, stats, needs action, activity, overview)
+- Send result modal (email preview, approved/rejected/partial content)
+- All leaves page (filters, columns, admin status)
+- Department names, penalty text, email content
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL text
+2. "Needs Your Action" panel must be visually prominent (red border, alert icon)
+3. SendResultModal must show different email content based on leave decision
+4. Charts must use recharts (BarChart and LineChart)
+5. All leaves table shows ALL leaves (not filtered by user)
+6. Admin status column tracks whether result email was sent
+7. Full RTL support
+8. Responsive layout
+9. ZERO TypeScript errors
+10. Navy/gold theme consistent with rest of app
+11. Use antd: Card, Row, Col, Table, Tag, Timeline, Progress, Badge, Statistic, Tabs, Modal, Button, Select, DatePicker, Input, Alert, Divider, notification
+12. Use @ant-design/icons throughout
+13. Use recharts for charts
