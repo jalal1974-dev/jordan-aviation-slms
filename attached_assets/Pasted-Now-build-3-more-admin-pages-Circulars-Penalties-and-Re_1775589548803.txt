@@ -1,0 +1,153 @@
+Now build 3 more admin pages: Circulars, Penalties, and Reports.
+
+Read existing files first:
+- src/types/index.ts for types
+- src/services/mockData.ts for mock data
+- src/i18n/en.json and ar.json
+- src/pages/admin/AdminDashboard.tsx for styling patterns
+
+===================================================
+PAGE 1: CREATE src/pages/admin/CircularsPage.tsx
+===================================================
+
+Company circulars/announcements management page.
+
+TOP:
+- Title: "Circulars & Announcements" / "التعاميم والإعلانات" with NotificationOutlined
+- Right: "New Circular" gold button → opens create modal
+
+CREATE CIRCULAR MODAL:
+- Title EN: Input
+- Title AR: Input
+- Content EN: TextArea (6 rows)
+- Content AR: TextArea (6 rows)
+- Type: Select (Policy Update / Warning / General Update / Blacklist Notice)
+- Active: Switch (default on)
+- "Publish" gold button + "Cancel"
+- On publish: add to list + success notification
+
+MAIN CONTENT:
+- antd List or Card grid showing all circulars
+- Each circular as a Card:
+  - Type icon + colored tag (Policy=blue, Warning=red, Update=green, Blacklist=purple)
+  - Title (bilingual — show based on current language)
+  - Content preview (first 200 chars, expandable)
+  - Published by: name + date
+  - Status: "Active" green tag / "Inactive" gray tag
+  - Actions: "Edit" button, "Deactivate/Activate" toggle, "Delete" button (with confirm)
+
+Mock circulars (3):
+1. Type: Policy, Title: "Updated Sick Leave Policy 2024" / "سياسة الإجازات المرضية المحدثة 2024", Active
+2. Type: Blacklist, Title: "Night Care Center Blocked" / "حظر مركز الرعاية الليلية", Content: "Effective immediately, Night Care Center (24h) is blocked...", Active
+3. Type: Warning, Title: "Reminder: Required Documents" / "تذكير: المستندات المطلوبة", Content: "All employees must submit complete documents...", Active
+
+Filter bar: Type filter, Status filter, Search
+
+===================================================
+PAGE 2: CREATE src/pages/admin/PenaltiesPage.tsx
+===================================================
+
+Penalties tracking and management page.
+
+TOP:
+- Title: "Penalties & Violations" / "العقوبات والمخالفات" with ExclamationCircleOutlined
+- Subtitle: "Track and manage employee violations"
+- Right: "Apply Penalty" gold button (opens modal)
+
+APPLY PENALTY MODAL:
+- Employee: Select (searchable, from mock employees)
+- Related Leave: Select (leaves for selected employee)
+- Violation Type: Select (1st Violation, 2nd Violation, 3rd Violation)
+- Penalty automatically shown based on type:
+  - 1st: "2 work days salary deduction" (shown in red)
+  - 2nd: "Written Warning (إنذار)" (shown in orange)
+  - 3rd: "Final Warning (إنذار نهائي)" (shown in red bold)
+- Unpaid Days: Number input
+- Notes: TextArea
+- "Apply Penalty" red button + "Cancel"
+
+STATISTICS ROW (3 cards):
+- Total Violations: count (red accent)
+- 1st Violations: count (orange)
+- 2nd Violations: count (red)
+- 3rd Violations: count (dark red)
+
+MAIN TABLE (antd Table):
+Columns:
+1. Employee: Name + ID
+2. Related Leave: Ref# (gold link)
+3. Violation #: "1st" / "2nd" / "3rd" with colored Tag (1st=orange, 2nd=red, 3rd=dark red)
+4. Penalty Type: Description text
+5. Salary Deduction: "2 days" or "N/A"
+6. Unpaid Days: Number or "N/A"
+7. Applied Date
+8. Applied By: "System" or admin name
+9. Actions: "View Details", "Revoke" (with confirmation)
+
+Mock penalties from mockData (violations on Ahmed's rejected leave SL-2024-00084):
+- Ahmed, SL-2024-00084, 1st Violation, 2 days salary deduction, March 16 2024
+
+Expandable rows: Full violation details, related leave summary, penalty calculation breakdown
+
+Filter: Employee, Violation type, Date range, Search
+
+===================================================
+PAGE 3: CREATE src/pages/admin/ReportsPage.tsx
+===================================================
+
+Reports and analytics page with multiple charts and exportable data.
+
+TOP:
+- Title: "Reports & Analytics" / "التقارير والتحليلات" with BarChartOutlined
+- Right: "Export PDF" button + "Export Excel" button (mock — show success notification)
+- Date range selector for report period
+
+TAB 1: "Overview" / "نظرة عامة":
+- Row of 6 stat cards: Total Leaves, Approved, Partial, Rejected, Avg Days/Leave, Total Days Used
+- Large recharts BarChart: Leaves by Status (Approved green, Partial amber, Rejected red, Pending blue)
+- recharts LineChart: Monthly Leave Trend (last 12 months mock data)
+
+TAB 2: "By Department" / "حسب القسم":
+- recharts horizontal BarChart: Leaves count per department
+- Table: Department, Total Leaves, Approved, Rejected, Avg Days, Top Diagnosis
+
+TAB 3: "By Doctor" / "حسب الطبيب":
+- Table: Doctor Name, Rank, Leaves Issued, Approved Rate, Rejected Rate, Avg Days, Trust Score
+- recharts PieChart: Distribution of leaves by doctor rank (GP vs Specialist vs Consultant)
+
+TAB 4: "By Facility" / "حسب المنشأة":
+- Table: Facility, Type, Leaves, Approved Rate, Flagged Rate, Trust Score
+- Highlight blocked facilities in red
+- recharts BarChart: Top 10 facilities by leave count
+
+TAB 5: "Violations" / "المخالفات":
+- Table: Month, Total Violations, 1st Count, 2nd Count, 3rd Count, Total Deductions
+- recharts BarChart: Violations per month
+- Summary: Total salary deductions, Total unpaid days
+
+All charts should use navy/gold color scheme. Use recharts: BarChart, LineChart, PieChart, ResponsiveContainer, Tooltip, Legend.
+
+===================================================
+UPDATE src/App.tsx:
+===================================================
+- Import CircularsPage from './pages/admin/CircularsPage'
+- Import PenaltiesPage from './pages/admin/PenaltiesPage'
+- Import ReportsPage from './pages/admin/ReportsPage'
+- Replace /admin/circulars, /admin/penalties, /admin/reports PlaceholderPages
+
+===================================================
+UPDATE TRANSLATIONS:
+===================================================
+Add all missing keys for circulars, penalties, and reports to both en.json and ar.json.
+
+CRITICAL REQUIREMENTS:
+1. useTranslation() for ALL text
+2. Create circular modal must work (add to state + show in list)
+3. Apply penalty modal must show auto-calculated penalty based on violation type
+4. Reports must have 5 tabs with different charts
+5. All charts use recharts with navy/gold colors
+6. Export buttons show mock success notifications
+7. Full RTL support
+8. Responsive
+9. ZERO TypeScript errors
+10. Consistent admin panel design

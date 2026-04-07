@@ -40,6 +40,9 @@ import AllLeaves from './pages/admin/AllLeaves';
 import EmployeesPage from './pages/admin/EmployeesPage';
 import FacilitiesPage from './pages/admin/FacilitiesPage';
 import DoctorsPage from './pages/admin/DoctorsPage';
+import CircularsPage from './pages/admin/CircularsPage';
+import PenaltiesPage from './pages/admin/PenaltiesPage';
+import ReportsPage from './pages/admin/ReportsPage';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './types';
 
@@ -226,7 +229,7 @@ const App: React.FC = () => {
             path="admin/circulars"
             element={
               <ProtectedRoute allowedRoles={['HR_MANAGER', 'HR_OFFICER']}>
-                <PlaceholderPage title="Circulars" icon={<NotificationOutlined />} />
+                <CircularsPage />
               </ProtectedRoute>
             }
           />
@@ -234,7 +237,7 @@ const App: React.FC = () => {
             path="admin/penalties"
             element={
               <ProtectedRoute allowedRoles={['HR_MANAGER', 'HR_OFFICER']}>
-                <PlaceholderPage title="Penalties" icon={<ExclamationCircleOutlined />} />
+                <PenaltiesPage />
               </ProtectedRoute>
             }
           />
@@ -242,7 +245,7 @@ const App: React.FC = () => {
             path="admin/reports"
             element={
               <ProtectedRoute allowedRoles={['HR_MANAGER', 'HR_OFFICER']}>
-                <PlaceholderPage title="Reports" icon={<BarChartOutlined />} />
+                <ReportsPage />
               </ProtectedRoute>
             }
           />
