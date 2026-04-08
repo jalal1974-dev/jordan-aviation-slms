@@ -2,17 +2,10 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { useTranslation } from 'react-i18next';
-import {
-  CheckCircleOutlined,
-  BankOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
-
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
-import PlaceholderPage from './pages/PlaceholderPage';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import SubmitLeave from './pages/employee/SubmitLeave';
 import MyLeaves from './pages/employee/MyLeaves';
@@ -20,6 +13,9 @@ import LeaveDetail from './pages/employee/LeaveDetail';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import ReviewQueue from './pages/doctor/ReviewQueue';
 import LeaveReview from './pages/doctor/LeaveReview';
+import DecisionsPage from './pages/doctor/DecisionsPage';
+import FacilitiesAnalysis from './pages/doctor/FacilitiesAnalysis';
+import DoctorsAnalysis from './pages/doctor/DoctorsAnalysis';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AllLeaves from './pages/admin/AllLeaves';
 import EmployeesPage from './pages/admin/EmployeesPage';
@@ -153,7 +149,7 @@ const App: React.FC = () => {
             path="doctor/decisions"
             element={
               <ProtectedRoute allowedRoles={['COMPANY_DOCTOR']}>
-                <PlaceholderPage title="My Decisions" icon={<CheckCircleOutlined />} />
+                <DecisionsPage />
               </ProtectedRoute>
             }
           />
@@ -161,7 +157,7 @@ const App: React.FC = () => {
             path="doctor/facilities"
             element={
               <ProtectedRoute allowedRoles={['COMPANY_DOCTOR']}>
-                <PlaceholderPage title="Facilities Analysis" icon={<BankOutlined />} />
+                <FacilitiesAnalysis />
               </ProtectedRoute>
             }
           />
@@ -169,7 +165,7 @@ const App: React.FC = () => {
             path="doctor/doctors"
             element={
               <ProtectedRoute allowedRoles={['COMPANY_DOCTOR']}>
-                <PlaceholderPage title="Doctors Analysis" icon={<TeamOutlined />} />
+                <DoctorsAnalysis />
               </ProtectedRoute>
             }
           />

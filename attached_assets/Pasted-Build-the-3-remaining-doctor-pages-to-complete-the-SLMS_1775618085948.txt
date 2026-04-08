@@ -1,0 +1,121 @@
+Build the 3 remaining doctor pages to complete the SLMS app. After this, ZERO placeholder pages should remain.
+
+Read existing files first:
+- src/types/index.ts for types
+- src/services/mockData.ts for mock data (mockDoctors, mockFacilities, mockSickLeaves, mockEmployees)
+- src/pages/doctor/DoctorDashboard.tsx for styling patterns
+- src/pages/doctor/ReviewQueue.tsx for table patterns
+- src/i18n/en.json and ar.json
+
+PAGE 1: CREATE src/pages/doctor/DecisionsPage.tsx
+
+Doctor's decision history page showing all past leave review decisions.
+
+TOP:
+- Title: "My Decisions" / "قراراتي" with CheckCircleOutlined
+- Subtitle: "History of all leave review decisions"
+
+STATISTICS ROW (5 small stat cards):
+- Total Decisions: count (blue)
+- Approved: count (green)
+- Partially Approved: count (amber)
+- Rejected: count (red)
+- Examinations: count (magenta)
+Calculate from mockData — count leaves with status APPROVED, PARTIALLY_APPROVED, REJECTED, EXAMINATION_REQUESTED.
+
+MAIN TABLE (antd Table):
+Columns:
+1. Decision Date (newest first, formatted nicely)
+2. Ref# (gold link → /doctor/review/:id)
+3. Employee: Name + Department below in gray
+4. Period: From-To dates + Days badge
+5. External Doctor: Name + Rank Tag (GP=gray, Specialist=cyan, Consultant=purple)
+6. Facility: Name + Type Tag
+7. Decision: Large colored Tag (APPROVED=green, PARTIALLY_APPROVED=amber, REJECTED=red, EXAMINATION_REQUESTED=magenta) with matching icon
+8. Diagnosis (truncated with tooltip)
+9. Actions: "View Review" gold button → /doctor/review/:id
+
+Filter bar:
+- Decision type Select (Approved, Partial, Rejected, Examination)
+- Search input (by ref#, employee, doctor name)
+- Clear Filters button
+
+Expandable rows showing:
+- Medical assessment text
+- If PARTIALLY_APPROVED: Approved days vs Rejected days with tags
+- If REJECTED: Rejection reasons
+- Instructions to employee (if any)
+
+PAGE 2: CREATE src/pages/doctor/FacilitiesAnalysis.tsx
+
+Facilities analysis page for the company doctor.
+
+TOP:
+- Title: "Facilities Analysis" / "تحليل المنشآت" with BankOutlined
+- Subtitle: "Monitor medical facility performance and trust"
+
+OVERVIEW ROW (4 stat cards):
+- Total Facilities: count (blue)
+- Trusted (trustScore > 0.7): count (green)
+- Blocked: count of isBlocked (red, with StopOutlined icon)
+- Average Trust Score: calculated (gray)
+
+CARD 1: "Trust Score Ranking" table sorted by trustScore descending:
+Columns: Rank (🥇🥈🥉 for top 3, then #4 #5...), Facility Name (bold, show blocked tag if blocked), Type (colored Tag), Trust Score (dynamic colored stars ★★★★☆ + number), Total Leaves, Flagged Leaves (red if >0), Flag Rate (Progress bar, green<20% yellow<50% red>50%), Status (Active green / Blocked red)
+- Blocked facilities get red background row
+
+CARD 2: "Facility Type Distribution" recharts PieChart showing count per facility type. Colors: Government=blue, Private Hospital=green, Clinic=cyan, Health Center=teal, 24h Center=red, Royal Medical=purple. Include Legend.
+
+CARD 3: "High Risk Facilities" red top-border card. List facilities with isBlocked OR flagRate>30% OR trustScore<0.5. Each shows: name + type tag, trust stars, flag rate Progress bar, "Recommend Blacklist" red button (shows notification on click). If no high risk: green Alert "All facilities within acceptable parameters ✓"
+
+CARD 4: "Leaves by Facility" recharts horizontal BarChart. Each bar = facility name, length = totalLeaves. Bar color based on trustScore (green>0.7, yellow>0.4, red<0.4). ResponsiveContainer.
+
+PAGE 3: CREATE src/pages/doctor/DoctorsAnalysis.tsx
+
+External doctors analysis page.
+
+TOP:
+- Title: "Doctors Analysis" / "تحليل الأطباء" with TeamOutlined
+- Subtitle: "Monitor external doctor performance and trust"
+
+OVERVIEW ROW (4 stat cards):
+- Total Doctors: count (blue)
+- Trusted (trustScore > 0.7): count (green)
+- Low Trust (trustScore < 0.4): count (red)
+- New Doctors (no trustScore or totalLeaves=0): count with blue "NEW" badge
+
+CARD 1: "Trust Score Ranking" table sorted by trustScore descending:
+Columns: Rank (medals for top 3), Doctor Name (bold, show blue "NEW" badge if new), Rank Tag (GP=gray, Specialist=cyan, Consultant=purple), Specialty, Trust Score (colored stars), Total Leaves, Flagged (red if >0), Flag Rate (Progress bar), Associated Facility name
+- Low trust (<0.4) get red background row
+- New doctors get light blue background
+
+CARD 2: "Doctor Rank Distribution" recharts PieChart: GP vs Specialist vs Consultant count. Colors: GP=gray, Specialist=cyan, Consultant=purple. Legend + percentage labels.
+
+CARD 3: "High Risk Doctors" red top-border card. List doctors with trustScore<0.5 OR flagRate>30%. Each shows: name + rank tag + specialty, trust stars, flag rate, "Recommend Blacklist" red button. If none: green Alert "All doctors within acceptable parameters ✓"
+
+CARD 4: "Leaves by Doctor" recharts BarChart (vertical). Bars colored by trustScore. ResponsiveContainer.
+
+UPDATE src/App.tsx:
+- Import DecisionsPage from './pages/doctor/DecisionsPage'
+- Import FacilitiesAnalysis from './pages/doctor/FacilitiesAnalysis'
+- Import DoctorsAnalysis from './pages/doctor/DoctorsAnalysis'
+- Replace /doctor/decisions PlaceholderPage route with <DecisionsPage />
+- Replace /doctor/facilities PlaceholderPage route with <FacilitiesAnalysis />
+- Replace /doctor/doctors PlaceholderPage route with <DoctorsAnalysis />
+- If NO more PlaceholderPage routes remain, remove the PlaceholderPage import entirely from App.tsx
+
+UPDATE TRANSLATIONS:
+Add missing keys to both en.json and ar.json for all 3 new pages.
+
+CRITICAL REQUIREMENTS:
+1. For ALL dynamic values (names, numbers, dates) use direct JavaScript template literals — NOT i18n interpolation
+2. Use t() only for static text strings
+3. recharts for all charts with navy (#001529) and gold (#D4AF37) colors
+4. Trust score stars must be dynamic (★ filled, ☆ empty, colored green/yellow/red)
+5. Tables sortable and filterable
+6. Expandable rows in DecisionsPage
+7. Red background for blocked/low-trust items
+8. Full RTL support
+9. ZERO TypeScript errors
+10. After this build ZERO PlaceholderPage routes should remain
+11. Use mockData exports correctly — check actual export names in mockData.ts before importing
