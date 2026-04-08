@@ -4,7 +4,6 @@ import {
   MailOutlined,
   LockOutlined,
   GlobalOutlined,
-  RocketOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
   TranslationOutlined,
@@ -76,7 +75,7 @@ const LoginPage: React.FC = () => {
         }}
       >
         <div style={{ textAlign: 'center', animation: 'fadeIn 0.8s ease-out' }}>
-          <RocketOutlined style={{ fontSize: 64, color: '#D4AF37', marginBottom: 24 }} />
+          <img src="/logo.png" alt="Jordan Aviation" style={{ width: 150, height: 'auto', marginBottom: 16 }} />
           <h1 style={{ color: '#D4AF37', fontSize: 36, fontWeight: 700, margin: '0 0 12px' }}>
             Jordan Aviation
           </h1>

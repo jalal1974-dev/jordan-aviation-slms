@@ -17,7 +17,6 @@ import {
   BarChartOutlined,
   BellOutlined,
   GlobalOutlined,
-  RocketOutlined,
   LogoutOutlined,
   SettingOutlined,
   MedicineBoxOutlined,
@@ -155,7 +154,10 @@ const AppLayout: React.FC = () => {
               gap: 10,
             }}
           >
-            <RocketOutlined style={{ color: '#D4AF37', fontSize: 24, flexShrink: 0 }} />
+            {collapsed
+              ? <img src="/logo.png" alt="JA" style={{ width: 35, height: 'auto' }} />
+              : <img src="/logo.png" alt="JA" style={{ width: 45, height: 'auto' }} />
+            }
             {!collapsed && (
               <span style={{ color: '#fff', fontWeight: 700, fontSize: 16, letterSpacing: 0.5 }}>
                 JA SLMS

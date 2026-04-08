@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Select, Checkbox, message } from 'antd';
-import { GlobalOutlined, RocketOutlined } from '@ant-design/icons';
+import { GlobalOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
@@ -46,7 +46,7 @@ const RegisterPage: React.FC = () => {
         }}
       >
         <div style={{ textAlign: 'center' }}>
-          <RocketOutlined style={{ fontSize: 64, color: '#D4AF37', marginBottom: 24 }} />
+          <img src="/logo.png" alt="Jordan Aviation" style={{ width: 150, height: 'auto', marginBottom: 16 }} />
           <h1 style={{ color: '#D4AF37', fontSize: 36, fontWeight: 700, margin: '0 0 12px' }}>
             Jordan Aviation
           </h1>
