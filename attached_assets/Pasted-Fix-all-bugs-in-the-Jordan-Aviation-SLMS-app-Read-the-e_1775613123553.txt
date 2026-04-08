@@ -1,0 +1,85 @@
+Fix all bugs in the Jordan Aviation SLMS app. Read the existing files first before making changes.
+
+Read these files:
+- src/pages/employee/EmployeeDashboard.tsx
+- src/pages/doctor/DoctorDashboard.tsx
+- src/pages/admin/AdminDashboard.tsx
+- src/store/authStore.ts
+- src/i18n/en.json and ar.json
+- src/services/mockData.ts
+
+===================================================
+BUG 1: Welcome message shows {name} literally
+===================================================
+In EmployeeDashboard.tsx, DoctorDashboard.tsx, and AdminDashboard.tsx:
+- The welcome banner shows "مرحباً بعودتك، {name}" as literal text instead of the actual user name
+- Fix approach: Do NOT rely on i18n interpolation for dynamic values. Instead, use direct concatenation:
+  - Replace: t('dashboard.welcomeMessage', { name: user.nameAr })
+  - With: `${t('dashboard.welcomeBack')} ${currentLanguage === 'ar' ? user.nameAr : user.nameEn} 👋`
+  - Or simply: Replace the entire welcome text with a direct template string that doesn't go through t()
+- Make sure to import useTranslation and get the current language with i18n.language
+- Apply this fix to ALL 3 dashboard files
+
+===================================================
+BUG 2: Date shows {date} literally
+===================================================
+In all 3 dashboards:
+- The date shows "{date}" or "اليوم هو {date}" literally
+- Fix: Generate the date directly in the component:
+  const today = new Date();
+  const dateStr = i18n.language === 'ar' 
+    ? today.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    : today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+- Use dateStr directly in JSX, NOT through t() interpolation
+- Apply to all 3 dashboards
+
+===================================================
+BUG 3: Chart label shows {used} من {total} literally
+===================================================
+In EmployeeDashboard.tsx:
+- The leave usage chart shows "{used} من {total} يوم مستخدم" as literal text
+- Fix: Replace with direct values:
+  const usedDays = 6; // calculated from mock data
+  const totalDays = 14;
+  const chartLabel = i18n.language === 'ar' ? `${usedDays} من ${totalDays} يوم مستخدم` : `${usedDays} of ${totalDays} days used`;
+- Do NOT use t() for this — use direct string
+
+===================================================
+BUG 4: Search ALL pages for broken interpolation
+===================================================
+Search through ALL .tsx files in src/pages/ for any pattern where:
+- The rendered output might show {variableName} literally on screen
+- Common patterns to find and fix:
+  - t('key', { variable: value }) where the JSON has {{variable}}
+  - If found, replace with direct string concatenation instead of i18n interpolation
+  - This is more reliable than fixing every interpolation pattern
+
+For each instance found:
+- Replace i18n interpolation with direct JavaScript template literals
+- Example: Instead of t('stats.balance', { used: 6, total: 14 })
+  Use: `${usedDays}/${totalDays}`
+
+===================================================
+BUG 5: Verify navigation works
+===================================================
+- Check all sidebar menu items have correct paths matching App.tsx routes
+- Check all "View" and "Review" buttons navigate to correct paths
+- Check leave reference number links go to correct detail/review pages
+- Fix any mismatched paths
+
+===================================================
+BUG 6: Check and fix any console errors
+===================================================
+- Run the app and check browser console for any React warnings or errors
+- Fix any missing key warnings, deprecated API usage, or runtime errors
+- Make sure antd components don't throw warnings
+
+After fixing all bugs:
+- Restart the app
+- Verify the welcome messages show real names
+- Verify dates show correctly formatted dates
+- Verify chart labels show real numbers
+- Verify no console errors
+- Take a screenshot to confirm
+
+CRITICAL: Do NOT use i18n interpolation ({{ }}) for any dynamic values like names, dates, or numbers. Always use direct JavaScript template literals for dynamic content. Use t() ONLY for static text strings.

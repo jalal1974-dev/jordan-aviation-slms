@@ -27,6 +27,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { useAuthStore } from '../../store/authStore';
 import {
   BarChart,
   Bar,
@@ -136,6 +137,8 @@ const blacklistRecs = [
 const AdminDashboard: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
+  const user = useAuthStore((s) => s.user);
+  const displayName = user ? (isAr ? user.nameAr : user.nameEn) : '';
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<SickLeave | null>(null);
   const [sentLeaves, setSentLeaves] = useState<Set<string>>(new Set());
@@ -358,7 +361,9 @@ const AdminDashboard: React.FC = () => {
               {today}
             </Text>
             <div style={{ color: '#fff', fontSize: 26, fontWeight: 700, marginBottom: 8 }}>
-              {t('adminDash.welcomeRania')} 👋
+              {isAr
+                ? `مرحباً، ${displayName.split(' ')[0]}`
+                : `Welcome back, ${displayName.split(' ')[0]}`} 👋
             </div>
             <Badge
               color="#D4AF37"

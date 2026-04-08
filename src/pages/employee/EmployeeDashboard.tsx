@@ -53,15 +53,15 @@ const STATUS_COLORS: Record<string, string> = {
 const formatDate = (date: Date) =>
   new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const timeAgo = (timestamp: Date, t: (k: string, opts?: Record<string, unknown>) => string): string => {
+const timeAgo = (timestamp: Date, t: (k: string) => string, isAr: boolean): string => {
   const diff = Date.now() - new Date(timestamp).getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
   if (mins < 2) return t('dashboard.justNow');
-  if (hours < 1) return t('dashboard.minutesAgo', { n: mins });
-  if (days < 1) return t('dashboard.hoursAgo', { n: hours });
-  return t('dashboard.daysAgo', { n: days });
+  if (hours < 1) return isAr ? `منذ ${mins} دقيقة` : `${mins} minutes ago`;
+  if (days < 1) return isAr ? `منذ ${hours} ساعة` : `${hours} hours ago`;
+  return isAr ? `منذ ${days} يوم` : `${days} days ago`;
 };
 
 const notifIcon = (notif: Notification) => {
@@ -244,7 +244,9 @@ const EmployeeDashboard: React.FC = () => {
               {today}
             </Text>
             <div style={{ color: '#fff', fontSize: 26, fontWeight: 700, marginBottom: 8 }}>
-              {t('dashboard.welcome', { name: displayName?.split(' ')[0] ?? '' })} 👋
+              {isAr
+                ? `مرحباً، ${displayName?.split(' ')[0] ?? ''}`
+                : `Welcome back, ${displayName?.split(' ')[0] ?? ''}`} 👋
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <Badge
@@ -369,7 +371,9 @@ const EmployeeDashboard: React.FC = () => {
           >
             <div style={{ textAlign: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 13, color: '#8c8c8c' }}>
-                {t('dashboard.daysUsed', { used: usedDays, total: totalDays })}
+                {isAr
+                  ? `${usedDays} من ${totalDays} يوم مستخدم`
+                  : `${usedDays} of ${totalDays} days used`}
               </Text>
             </div>
             <ResponsiveContainer width="100%" height={200}>
@@ -450,7 +454,7 @@ const EmployeeDashboard: React.FC = () => {
                           <Text type="secondary" style={{ fontSize: 12 }}>{item.message}</Text>
                           <br />
                           <Text type="secondary" style={{ fontSize: 11 }}>
-                            {timeAgo(item.timestamp, t)}
+                            {timeAgo(item.timestamp, t, isAr)}
                           </Text>
                         </div>
                       }
@@ -559,13 +563,12 @@ const EmployeeDashboard: React.FC = () => {
                         {t('dashboard.examScheduled')}
                       </Text>
                       <Text style={{ display: 'block', fontSize: 13, marginTop: 4 }}>
-                        📅 {t('dashboard.examDetails', {
-                          date: formatDate(leave.examinationDetails!.date),
-                          time: leave.examinationDetails!.time,
-                        })}
+                        📅 {isAr
+                          ? `${formatDate(leave.examinationDetails!.date)} الساعة ${leave.examinationDetails!.time}`
+                          : `Date: ${formatDate(leave.examinationDetails!.date)} at ${leave.examinationDetails!.time}`}
                       </Text>
                       <Text style={{ display: 'block', fontSize: 12, color: '#8c8c8c' }}>
-                        {t('dashboard.examLocation', { location: leave.examinationDetails!.location })}
+                        📍 {leave.examinationDetails!.location}
                       </Text>
                       <Button
                         size="small"
@@ -594,7 +597,9 @@ const EmployeeDashboard: React.FC = () => {
                         {t('dashboard.docsNeeded')}
                       </Text>
                       <Text style={{ display: 'block', fontSize: 13, marginTop: 4 }}>
-                        {t('dashboard.docsNeededMsg', { ref: leave.refNumber })}
+                        {isAr
+                          ? `يرجى تحميل المستندات المطلوبة للإجازة ${leave.refNumber}`
+                          : `Please upload the requested documents for leave ${leave.refNumber}`}
                       </Text>
                       <Button
                         size="small"

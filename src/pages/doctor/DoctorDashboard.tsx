@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useAuthStore } from '../../store/authStore';
 import {
   Row,
   Col,
@@ -115,6 +116,8 @@ const DoctorDashboard: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const isAr = i18n.language === 'ar';
+  const user = useAuthStore((s) => s.user);
+  const displayName = user ? (isAr ? user.nameAr : user.nameEn) : '';
 
   const pendingLeaves = mockSickLeaves
     .filter((l) => PENDING_STATUSES.includes(l.status))
@@ -343,10 +346,12 @@ const DoctorDashboard: React.FC = () => {
               {t('roles.companyDoctor')}
             </Tag>
             <Title level={2} style={{ color: '#fff', margin: 0, fontWeight: 700 }}>
-              {t('doctorDash.welcomeDoctor')}
+              {isAr
+                ? `مرحباً، ${displayName.split(' ')[0]}`
+                : `Welcome back, ${displayName.split(' ')[0]}`} 👋
             </Title>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
-              {t('dashboard.todayIs', { date: today })}
+              {today}
             </Text>
           </Col>
           <Col xs={24} md={8} style={{ textAlign: isAr ? 'left' : 'right' }}>
