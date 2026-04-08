@@ -3,24 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { useTranslation } from 'react-i18next';
 import {
-  DashboardOutlined,
-  FileAddOutlined,
-  FileTextOutlined,
-  BookOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  WarningOutlined,
-  UnorderedListOutlined,
   CheckCircleOutlined,
   BankOutlined,
   TeamOutlined,
-  NotificationOutlined,
-  ExclamationCircleOutlined,
-  BarChartOutlined,
-  BellOutlined,
-  MedicineBoxOutlined,
-  AuditOutlined,
-  FileSearchOutlined,
 } from '@ant-design/icons';
 
 import LoginPage from './pages/auth/LoginPage';
