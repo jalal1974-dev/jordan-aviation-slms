@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -24,13 +24,8 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import {
-  mockUsers,
-  mockDepartments,
-  mockSickLeaves,
-  mockViolations,
-} from '../../services/mockData';
-import type { User } from '../../types';
+import { employeesAPI, leavesAPI, penaltiesAPI } from '../../services/api';
+import type { User, SickLeave, Violation } from '../../types';
 
 const { Text, Title } = Typography;
 const { Option } = Select;

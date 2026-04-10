@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -16,6 +16,7 @@ import {
   notification,
   Space,
   Divider,
+  Spin,
 } from 'antd';
 import {
   NotificationOutlined,
@@ -30,7 +31,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { mockCirculars } from '../../services/mockData';
+import { circularsAPI } from '../../services/api';
 import type { CircularType } from '../../types';
 
 const { Text, Title, Paragraph } = Typography;
@@ -62,11 +63,6 @@ const WARN_TYPE_CONFIG: Record<string, { color: string; icon: React.ReactNode }>
   WARNING: { color: 'red', icon: <WarningOutlined /> },
 };
 
-const initialCirculars: CircularItem[] = mockCirculars.map((c, i) => ({
-  ...c,
-  isActive: true,
-  publishedBy: i === 0 ? 'Rania Qasem' : i === 1 ? 'Rania Qasem' : 'Rania Qasem',
-}));
 
 const formatDate = (date: Date) =>
   new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -74,7 +70,8 @@ const formatDate = (date: Date) =>
 const CircularsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
-  const [circulars, setCirculars] = useState<CircularItem[]>(initialCirculars);
+  const [circulars, setCirculars] = useState<CircularItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -82,6 +79,20 @@ const CircularsPage: React.FC = () => {
   const [editItem, setEditItem] = useState<CircularItem | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [form] = Form.useForm();
+
+  const fetchCirculars = async () => {
+    try {
+      const res = await circularsAPI.getAll();
+      const data = res.data?.data ?? res.data ?? [];
+      setCirculars(Array.isArray(data) ? data : []);
+    } catch {
+      /* keep existing state */
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCirculars(); }, []);
 
   const filtered = circulars.filter((c) => {
     const q = search.toLowerCase();
@@ -114,36 +125,46 @@ const CircularsPage: React.FC = () => {
   };
 
   const handleSubmit = () => {
-    form.validateFields().then((values) => {
-      if (editItem) {
-        setCirculars((prev) =>
-          prev.map((c) => (c.id === editItem.id ? { ...c, ...values } : c))
-        );
-        notification.success({ message: t('cirPage.updateSuccess') });
-      } else {
-        const newItem: CircularItem = {
-          id: `cir-${Date.now()}`,
-          refNumber: `CIR-2024-${String(circulars.length + 1).padStart(3, '0')}`,
-          date: new Date(),
-          publishedBy: 'Rania Qasem',
-          ...values,
-        };
-        setCirculars((prev) => [newItem, ...prev]);
-        notification.success({ message: t('cirPage.publishSuccess') });
+    form.validateFields().then(async (values) => {
+      try {
+        if (editItem) {
+          await circularsAPI.update(editItem.id, values);
+          notification.success({ message: t('cirPage.updateSuccess') });
+        } else {
+          await circularsAPI.create(values);
+          notification.success({ message: t('cirPage.publishSuccess') });
+        }
+        await fetchCirculars();
+        setModalOpen(false);
+      } catch {
+        notification.error({ message: 'Operation failed' });
       }
-      setModalOpen(false);
     });
   };
 
-  const toggleActive = (id: string) => {
+  const toggleActive = async (id: string) => {
+    const item = circulars.find((c) => c.id === id);
+    if (!item) return;
     setCirculars((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isActive: !c.isActive } : c))
     );
+    try {
+      await circularsAPI.update(id, { isActive: !item.isActive });
+    } catch {
+      setCirculars((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, isActive: item.isActive } : c))
+      );
+    }
   };
 
-  const deleteCircular = (id: string) => {
-    setCirculars((prev) => prev.filter((c) => c.id !== id));
-    notification.success({ message: t('cirPage.deleteSuccess') });
+  const deleteCircular = async (id: string) => {
+    try {
+      await circularsAPI.delete(id);
+      setCirculars((prev) => prev.filter((c) => c.id !== id));
+      notification.success({ message: t('cirPage.deleteSuccess') });
+    } catch {
+      notification.error({ message: 'Delete failed' });
+    }
   };
 
   const toggleExpand = (id: string) => {
@@ -255,6 +276,7 @@ const CircularsPage: React.FC = () => {
       </Card>
 
       {/* List */}
+      <Spin spinning={loading}>
       <List
         grid={{ gutter: 16, xs: 1, sm: 1, md: 2, lg: 2, xl: 3, xxl: 3 }}
         dataSource={filtered}
@@ -350,6 +372,7 @@ const CircularsPage: React.FC = () => {
           );
         }}
       />
+      </Spin>
 
       {/* Create / Edit Modal */}
       <Modal

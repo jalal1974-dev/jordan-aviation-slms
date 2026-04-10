@@ -1,0 +1,168 @@
+This project has been partially connected to a backend API. The API service (src/services/api.ts), auth store, leave store, notification store, login page, and all employee pages are already updated to use real API calls.
+
+The backend API is at: https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api
+
+I need you to finish updating the REMAINING pages that still use mock data (from src/services/mockData.ts). These pages need to fetch from the real API instead.
+
+FIRST: Run npm install to ensure axios is installed.
+
+IMPORTANT: The src/services/api.ts file already exists with all API functions:
+- authAPI (login, register, getMe)
+- leavesAPI (getAll, getById, submit, updateStatus, submitDecision)
+- employeesAPI (getAll, getById, update)
+- facilitiesAPI (getAll, create, update, toggleBlock)
+- doctorsAPI (getAll, create, update)
+- circularsAPI (getAll, create, update, delete)
+- penaltiesAPI (getAll, apply, revoke)
+- notificationsAPI (getAll, markRead, markAllRead, getUnreadCount)
+- reportsAPI (getOverview, getByDepartment, getByDoctor, getByFacility, getViolations)
+
+=== FILES TO UPDATE (remove mockData imports, use real API) ===
+
+1. src/pages/doctor/ReviewQueue.tsx
+   - Import { leavesAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Add useState for leaves, loading state
+   - Add useEffect to fetch: const response = await leavesAPI.getAll(); setLeaves(response.data.data)
+   - Add antd Spin while loading
+   - Keep ALL existing UI, filters, tabs, table exactly the same
+
+2. src/pages/doctor/LeaveReview.tsx
+   - Import { leavesAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch single leave: const response = await leavesAPI.getById(id)
+   - On decision submit: await leavesAPI.submitDecision(id, decisionData)
+   - Show success message and navigate back to review queue
+   - Keep ALL existing UI exactly the same
+
+3. src/pages/admin/AllLeaves.tsx
+   - Import { leavesAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch all leaves: const response = await leavesAPI.getAll(filters)
+   - Pass filter params to API
+   - Keep ALL existing UI exactly the same
+
+4. src/pages/admin/EmployeesPage.tsx
+   - Import { employeesAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch: const response = await employeesAPI.getAll(filters)
+   - Keep ALL existing UI exactly the same
+
+5. src/pages/admin/FacilitiesPage.tsx
+   - Import { facilitiesAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch: const response = await facilitiesAPI.getAll()
+   - Block/unblock: await facilitiesAPI.toggleBlock(id, { isBlocked, blockReason })
+   - Keep ALL existing UI exactly the same
+
+6. src/pages/admin/DoctorsPage.tsx
+   - Import { doctorsAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch: const response = await doctorsAPI.getAll()
+   - Keep ALL existing UI exactly the same
+
+7. src/pages/admin/CircularsPage.tsx
+   - Import { circularsAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch: const response = await circularsAPI.getAll()
+   - Create: await circularsAPI.create(data)
+   - Update: await circularsAPI.update(id, data)
+   - Delete: await circularsAPI.delete(id)
+   - Keep ALL existing UI exactly the same
+
+8. src/pages/admin/PenaltiesPage.tsx
+   - Import { penaltiesAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch: const response = await penaltiesAPI.getAll()
+   - Apply: await penaltiesAPI.apply(data)
+   - Revoke: await penaltiesAPI.revoke(id)
+   - Keep ALL existing UI exactly the same
+
+9. src/pages/admin/ReportsPage.tsx
+   - Import { reportsAPI } from '../../services/api'
+   - Remove any mockData imports
+   - Fetch based on active tab:
+     - Overview: reportsAPI.getOverview()
+     - By Department: reportsAPI.getByDepartment()
+     - By Doctor: reportsAPI.getByDoctor()
+     - By Facility: reportsAPI.getByFacility()
+     - Violations: reportsAPI.getViolations()
+   - Keep ALL existing UI exactly the same
+
+10. src/pages/admin/SendResultModal.tsx (if it uses mockData)
+    - Update to use real API if needed
+
+11. src/pages/employee/SubmitLeave.tsx
+    - Import { leavesAPI } from '../../services/api'
+    - On submit: await leavesAPI.submit(formData)
+    - Show success message
+    - Navigate to MyLeaves after success
+    - Keep the 3-step wizard UI exactly the same
+
+12. src/components/layout/AppLayout.tsx
+    - Import { useAuthStore } from '../../store/authStore'
+    - Import { notificationsAPI } from '../../services/api'
+    - Get user from authStore (not mock)
+    - Show real user name/role in header and sidebar
+    - Fetch unread notification count: notificationsAPI.getUnreadCount()
+    - Logout button calls authStore.logout()
+    - Keep ALL existing layout, sidebar, header design exactly the same
+
+13. src/pages/shared/NotificationsPage.tsx
+    - Import { notificationsAPI } from '../../services/api'
+    - Fetch: const response = await notificationsAPI.getAll()
+    - Mark read: await notificationsAPI.markRead(id)
+    - Mark all read: await notificationsAPI.markAllRead()
+    - Keep ALL existing UI exactly the same
+
+=== PATTERN FOR EACH PAGE UPDATE ===
+
+For every page, follow this pattern:
+
+// 1. Remove old mock imports
+// DELETE: import { mockLeaves, mockEmployees, etc } from '../../services/mockData';
+
+// 2. Add API imports
+import { leavesAPI } from '../../services/api';
+import { Spin, message, Empty } from 'antd';
+
+// 3. Add state
+const [data, setData] = useState<any[]>([]);
+const [loading, setLoading] = useState(true);
+
+// 4. Add useEffect to fetch
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const response = await leavesAPI.getAll();
+      setData(response.data.data || []);
+    } catch (error) {
+      message.error('Failed to load data');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, []);
+
+// 5. Add loading wrapper
+if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+
+// 6. Add empty state
+if (data.length === 0) return <Empty description="No data available" />;
+
+=== CRITICAL REQUIREMENTS ===
+
+1. Do NOT change ANY UI design, layouts, colors, or styling
+2. Do NOT delete any pages or components
+3. ONLY change where data comes from (mock → API)
+4. Add Spin loading state to every page
+5. Add error handling with message.error()
+6. If API returns empty data, show antd Empty component
+7. Keep ALL bilingual (Arabic/English) support working
+8. Keep ALL RTL/LTR support working
+9. The .env file should have: VITE_API_URL=https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api
+10. After all updates, verify NO file imports from mockData.ts anymore
+11. Run the app and make sure login works with employee@jordanaviation.jo / Test1234

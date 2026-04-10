@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -23,8 +23,8 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { mockSickLeaves, mockUsers, mockDoctors, mockFacilities, mockDepartments } from '../../services/mockData';
-import type { SickLeave, LeaveStatus } from '../../types';
+import { leavesAPI, employeesAPI, doctorsAPI, facilitiesAPI } from '../../services/api';
+import type { SickLeave, LeaveStatus, User, Doctor, Facility } from '../../types';
 import SendResultModal from '../../components/admin/SendResultModal';
 
 const { Text, Title } = Typography;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Steps,
   Card,
@@ -41,8 +41,8 @@ import { useTranslation } from 'react-i18next';
 import dayjs, { Dayjs } from 'dayjs';
 import { useAuthStore } from '../../store/authStore';
 import { useLeaveStore } from '../../store/leaveStore';
-import { mockDoctors, mockFacilities } from '../../services/mockData';
-import type { DoctorRank, FacilityType } from '../../types';
+import { doctorsAPI, facilitiesAPI } from '../../services/api';
+import type { DoctorRank, FacilityType, Doctor, Facility } from '../../types';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -150,6 +150,20 @@ const SubmitLeave: React.FC = () => {
   const submitLeave = useLeaveStore((s) => s.submitLeave);
 
   const isAr = i18n.language === 'ar';
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+
+  useEffect(() => {
+    doctorsAPI.getAll().then((res) => {
+      const data = res.data?.data ?? res.data ?? [];
+      setDoctors(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+    facilitiesAPI.getAll().then((res) => {
+      const data = res.data?.data ?? res.data ?? [];
+      setFacilities(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+  }, []);
+
   const [currentStep, setCurrentStep] = useState(0);
   const [files, setFiles] = useState<MockFile[]>(MOCK_FILES);
   const [comment, setComment] = useState(MOCK_COMMENT);
@@ -166,19 +180,19 @@ const SubmitLeave: React.FC = () => {
   }, [form.fromDate, form.toDate]);
 
   const selectedFacility = useMemo(
-    () => mockFacilities.find((f) =>
+    () => facilities.find((f) =>
       (isAr ? f.nameAr : f.nameEn).toLowerCase() === form.facilityName.toLowerCase() ||
       f.nameEn.toLowerCase() === form.facilityName.toLowerCase()
     ),
-    [form.facilityName, isAr]
+    [facilities, form.facilityName, isAr]
   );
 
   const selectedDoctor = useMemo(
-    () => mockDoctors.find((d) =>
+    () => doctors.find((d) =>
       (isAr ? d.nameAr : d.nameEn).toLowerCase() === form.doctorName.toLowerCase() ||
       d.nameEn.toLowerCase() === form.doctorName.toLowerCase()
     ),
-    [form.doctorName, isAr]
+    [doctors, form.doctorName, isAr]
   );
 
   const isGpViolation = form.doctorRank === 'GP' && totalDays > 1;
@@ -188,12 +202,12 @@ const SubmitLeave: React.FC = () => {
   const hasPrescription = files.some((f) => f.classification === 'PRESCRIPTION');
   const overallConfidence = Math.round(files.reduce((s, f) => s + f.confidence, 0) / (files.length || 1));
 
-  const doctorOptions = mockDoctors.map((d) => ({
+  const doctorOptions = doctors.map((d) => ({
     value: isAr ? d.nameAr : d.nameEn,
     label: isAr ? d.nameAr : d.nameEn,
   }));
 
-  const facilityOptions = mockFacilities.map((f) => ({
+  const facilityOptions = facilities.map((f) => ({
     value: isAr ? f.nameAr : f.nameEn,
     label: isAr ? f.nameAr : f.nameEn,
   }));

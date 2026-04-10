@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -27,7 +27,7 @@ import {
   MoreOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { mockSickLeaves, mockDepartments } from '../../services/mockData';
+import { leavesAPI } from '../../services/api';
 import type { SickLeave } from '../../types';
 
 const { Title, Text } = Typography;
@@ -74,8 +74,8 @@ const isWeekendAdjacent = (leave: SickLeave): boolean => {
   return isJordanWeekend(dayBefore) || isJordanWeekend(dayAfter);
 };
 
-const isFrequentLeave = (leave: SickLeave): boolean => {
-  const count = mockSickLeaves.filter((l) => l.employeeId === leave.employeeId).length;
+const isFrequentLeave = (leave: SickLeave, allLeaves: SickLeave[]): boolean => {
+  const count = allLeaves.filter((l) => l.employeeId === leave.employeeId).length;
   return count > 3;
 };
 
@@ -112,6 +112,8 @@ const ReviewQueue: React.FC = () => {
   const navigate = useNavigate();
   const isAr = i18n.language === 'ar';
 
+  const [allLeaves, setAllLeaves] = useState<SickLeave[]>([]);
+  const [loading, setLoading] = useState(true);
   const [segment, setSegment] = useState<SegmentKey>('ALL');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [deptFilter, setDeptFilter] = useState<string | undefined>(undefined);
@@ -119,15 +121,25 @@ const ReviewQueue: React.FC = () => {
   const [daysFilter, setDaysFilter] = useState<string | undefined>(undefined);
   const [searchText, setSearchText] = useState('');
 
+  useEffect(() => {
+    leavesAPI.getAll()
+      .then((res) => {
+        const data = res.data?.data ?? res.data ?? [];
+        setAllLeaves(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   const allPending = useMemo(
     () =>
-      mockSickLeaves
+      allLeaves
         .filter((l) => PENDING_STATUSES.includes(l.status))
         .sort((a, b) => {
           const order: Record<Priority, number> = { HIGH: 0, MEDIUM: 1, NORMAL: 2 };
           return order[calculatePriority(a)] - order[calculatePriority(b)];
         }),
-    []
+    [allLeaves]
   );
 
   const clearFilters = () => {
@@ -437,7 +449,7 @@ const ReviewQueue: React.FC = () => {
           {isWeekendAdjacent(r) && (
             <Tooltip title={t('queue.flagWeekend')}><span>🏖️</span></Tooltip>
           )}
-          {isFrequentLeave(r) && (
+          {isFrequentLeave(r, allLeaves) && (
             <Tooltip title={t('queue.flagFrequent')}><span>🔄</span></Tooltip>
           )}
           {hasMissingDocs(r) && (
@@ -534,10 +546,11 @@ const ReviewQueue: React.FC = () => {
               onChange={setDeptFilter}
               style={{ width: '100%' }}
               allowClear
-              options={mockDepartments.map((d) => ({
-                value: d.id,
-                label: isAr ? d.nameAr : d.nameEn,
-              }))}
+              options={[...new Map(
+                allLeaves.map((l) => [l.employee?.department?.id, l.employee?.department])
+              ).values()]
+                .filter(Boolean)
+                .map((d) => ({ value: d!.id, label: isAr ? d!.nameAr : d!.nameEn }))}
             />
           </Col>
           <Col xs={24} sm={12} md={6} lg={4}>

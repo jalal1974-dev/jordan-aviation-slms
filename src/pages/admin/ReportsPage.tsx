@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -33,7 +33,8 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { mockSickLeaves, mockViolations, mockDoctors, mockFacilities, mockDepartments } from '../../services/mockData';
+import { leavesAPI, penaltiesAPI, doctorsAPI, facilitiesAPI } from '../../services/api';
+import type { SickLeave, Doctor, Facility } from '../../types';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;

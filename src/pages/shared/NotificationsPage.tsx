@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   List,
@@ -7,6 +7,7 @@ import {
   Badge,
   Typography,
   Empty,
+  Spin,
 } from 'antd';
 import {
   BellOutlined,
@@ -21,6 +22,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
+import { notificationsAPI } from '../../services/api';
 
 const { Text, Title } = Typography;
 
@@ -52,7 +54,7 @@ const COLOR_MAP: Record<string, string> = {
   ERROR: '#ff4d4f',
 };
 
-const getMockNotifications = (userId: string): AppNotification[] => {
+const _getMockNotifications = (userId: string): AppNotification[] => {
   const base: AppNotification[] = [
     {
       id: 'n1',
@@ -172,16 +174,31 @@ const getGroup = (date: Date): string => {
 const NotificationsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const [notifs, setNotifs] = useState<AppNotification[]>(
-    user ? getMockNotifications(user.id) : []
-  );
+  const [notifs, setNotifs] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const markAllRead = () => {
+  useEffect(() => {
+    notificationsAPI.getAll()
+      .then((res) => {
+        const data = res.data?.data ?? res.data ?? [];
+        setNotifs(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (user) {
+          setNotifs(_getMockNotifications(user.id));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  const markAllRead = async () => {
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    try { await notificationsAPI.markAllRead(); } catch { /* silent */ }
   };
 
-  const markOneRead = (id: string) => {
+  const markOneRead = async (id: string) => {
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try { await notificationsAPI.markRead(id); } catch { /* silent */ }
   };
 
   const grouped = useMemo(() => {
@@ -243,7 +260,11 @@ const NotificationsPage: React.FC = () => {
       </div>
 
       <Card style={{ borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
-        {notifs.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin size="large" />
+          </div>
+        ) : notifs.length === 0 ? (
           <Empty description={t('notifs.empty')} style={{ padding: '40px 0' }} />
         ) : (
           ['today', 'yesterday', 'thisWeek', 'earlier'].map((group) => {
