@@ -40,15 +40,15 @@ type Priority = 'HIGH' | 'MEDIUM' | 'NORMAL';
 const calculatePriority = (leave: SickLeave): Priority => {
   const risk = leave.aiAnalysis?.riskScore ?? 0;
   if (
-    leave.facility.isBlocked ||
-    (leave.doctor.rank === 'GP' && leave.totalDays > 1) ||
+    leave.facility?.isBlocked ||
+    (leave.doctor?.rank === 'GP' && leave.totalDays > 1) ||
     risk > 70 ||
     leave.totalDays > 4
   )
     return 'HIGH';
   if (
-    (leave.doctor.rank === 'SPECIALIST' && leave.totalDays > 2) ||
-    leave.documents.length < 2 ||
+    (leave.doctor?.rank === 'SPECIALIST' && leave.totalDays > 2) ||
+    (leave.documents?.length ?? 0) < 2 ||
     risk > 30
   )
     return 'MEDIUM';
