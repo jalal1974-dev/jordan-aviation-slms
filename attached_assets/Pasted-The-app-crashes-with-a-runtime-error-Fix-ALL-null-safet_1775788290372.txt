@@ -1,0 +1,58 @@
+The app crashes with a runtime error. Fix ALL null-safety issues across all pages.
+
+The backend API sometimes returns null for nested relations (facility, doctor, department, employee). 
+
+Search ALL .tsx files in src/pages/ for these patterns and add null-safety:
+
+1. Replace: facility.isBlocked → facility?.isBlocked
+2. Replace: facility.nameAr → facility?.nameAr  
+3. Replace: facility.nameEn → facility?.nameEn
+4. Replace: facility.trustScore → facility?.trustScore
+5. Replace: doctor.nameAr → doctor?.nameAr
+6. Replace: doctor.nameEn → doctor?.nameEn
+7. Replace: doctor.rank → doctor?.rank
+8. Replace: doctor.trustScore → doctor?.trustScore
+9. Replace: department.nameAr → department?.nameAr
+10. Replace: department.nameEn → department?.nameEn
+11. Replace: employee.nameAr → employee?.nameAr
+12. Replace: employee.nameEn → employee?.nameEn
+13. Replace: record.doctor.nameAr → record.doctor?.nameAr
+14. Replace: record.facility.nameAr → record.facility?.nameAr
+15. Replace: record.employee.department → record.employee?.department
+16. Replace: leave.doctor.nameAr → leave.doctor?.nameAr
+17. Replace: leave.facility.nameAr → leave.facility?.nameAr
+18. Replace: leave.employee.nameAr → leave.employee?.nameAr
+
+Also fix any function that accesses nested properties like:
+- calculatePriority function in DoctorDashboard.tsx accessing facility.isBlocked — add null check
+- Any .filter() or .map() that accesses nested objects without null checks
+- Any table column render functions accessing nested properties
+- Any chart data calculations accessing nested properties
+
+Use optional chaining (?.) and nullish coalescing (?? '') everywhere a nested object might be null.
+
+Example fixes:
+- leave.facility.nameAr → leave.facility?.nameAr ?? 'N/A'
+- leave.doctor.rank → leave.doctor?.rank ?? 'GP'
+- record.employee.department.nameAr → record.employee?.department?.nameAr ?? ''
+- facility.isBlocked → facility?.isBlocked ?? false
+- doctor.trustScore → doctor?.trustScore ?? 0
+
+Search EVERY file in:
+- src/pages/employee/
+- src/pages/doctor/
+- src/pages/admin/
+- src/pages/shared/
+- src/pages/auth/
+- src/components/layout/
+
+Also make sure the .env file exists with:
+VITE_API_URL=https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api
+
+After fixing ALL files, run npm run dev and verify:
+1. The app starts without crashes
+2. Login works with: employee@jordanaviation.jo / Test1234
+3. Employee dashboard loads
+4. Then test doctor login: doctor@jordanaviation.jo / Test1234
+5. Doctor dashboard loads without crashing
+6. Then test admin login: admin@jordanaviation.jo / Test1234

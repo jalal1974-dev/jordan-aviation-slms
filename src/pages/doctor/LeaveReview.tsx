@@ -250,7 +250,10 @@ const LeaveReview: React.FC = () => {
   }
 
   /* ── Derived values ── */
-  const { employee, doctor, facility, documents } = leave;
+  const employee = leave?.employee ?? {};
+  const doctor   = leave?.doctor   ?? {};
+  const facility = leave?.facility ?? {};
+  const documents: any[] = leave?.documents ?? [];
   const daysUsed = employeeAllLeaves
     .filter((l: any) => l.status === 'APPROVED' || l.status === 'PARTIALLY_APPROVED')
     .reduce((sum: number, l: any) => sum + (l.approvedDays ?? 0), 0);
@@ -632,15 +635,15 @@ const LeaveReview: React.FC = () => {
           >
             <Row gutter={[16, 0]} align="middle">
               <Col flex="80px">
-                <Avatar size={64} style={{ background: getAvatarColor(employee.id), fontSize: 28, fontWeight: 700 }}>
-                  {(isAr ? employee.nameAr : employee.nameEn).charAt(0)}
+                <Avatar size={64} style={{ background: getAvatarColor(employee.id ?? ''), fontSize: 28, fontWeight: 700 }}>
+                  {(isAr ? employee.nameAr ?? '' : employee.nameEn ?? '').charAt(0)}
                 </Avatar>
               </Col>
               <Col flex="1">
                 <Title level={4} style={{ margin: 0, color: NAVY }}>{isAr ? employee.nameAr : employee.nameEn}</Title>
                 <Text type="secondary" style={{ fontSize: 13 }}>{employee.employeeNumber}</Text><br />
                 <Text style={{ fontSize: 13 }}>
-                  {isAr ? employee.department.nameAr : employee.department.nameEn} · {employee.jobTitle}
+                  {isAr ? employee.department?.nameAr : employee.department?.nameEn} · {employee.jobTitle}
                 </Text>
               </Col>
             </Row>
@@ -695,15 +698,15 @@ const LeaveReview: React.FC = () => {
           {/* CARD 3: Medical Information */}
           <Card title={<span style={cardHeadStyle}>{t('leaveReview.medicalInfo')}</span>} style={cardStyle}>
             <Text strong style={{ fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('leaveReview.doctorSection')}</Text>
-            {doctor.trustScore !== null && doctor.trustScore < 0.4 && (
+            {doctor.trustScore != null && doctor.trustScore < 0.4 && (
               <Alert message={`🚨 ${t('leaveReview.lowTrustAlert')}`} type="error" showIcon={false} style={{ marginTop: 10, marginBottom: 10, borderRadius: 8 }} />
             )}
             <Row gutter={[16, 8]} style={{ marginTop: 12 }}>
               <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.doctorName')}</Text><Text strong style={{ fontSize: 15 }}>{isAr ? doctor.nameAr : doctor.nameEn}</Text></Col>
-              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.rank')}</Text><Tag color={doctor.rank === 'GP' || doctor.rank === 'RESIDENT' ? 'default' : doctor.rank === 'SPECIALIST' ? 'blue' : 'purple'}>{t(`doctorRanks.${doctor.rank.toLowerCase()}`)}</Tag></Col>
+              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.rank')}</Text><Tag color={doctor.rank === 'GP' || doctor.rank === 'RESIDENT' ? 'default' : doctor.rank === 'SPECIALIST' ? 'blue' : 'purple'}>{t(`doctorRanks.${(doctor.rank ?? '').toLowerCase()}`)}</Tag></Col>
               <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.specialty')}</Text><Text style={{ fontSize: 14 }}>{doctor.specialty}</Text></Col>
-              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.trustScore')}</Text>{trustStars(doctor.trustScore)}{doctor.trustScore !== null && <Text style={{ marginInlineStart: 6, fontSize: 12, color: '#888' }}>({Math.round(doctor.trustScore * 100)}%)</Text>}</Col>
-              <Col span={24}><Text type="secondary" style={{ fontSize: 12 }}>{t('leaveReview.doctorHistory', { count: doctor.leavesIssued, flagged: doctor.leavesFlagged })}</Text></Col>
+              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.trustScore')}</Text>{trustStars(doctor.trustScore ?? null)}{doctor.trustScore != null && <Text style={{ marginInlineStart: 6, fontSize: 12, color: '#888' }}>({Math.round(doctor.trustScore * 100)}%)</Text>}</Col>
+              <Col span={24}><Text type="secondary" style={{ fontSize: 12 }}>{t('leaveReview.doctorHistory', { count: doctor.leavesIssued ?? 0, flagged: doctor.leavesFlagged ?? 0 })}</Text></Col>
             </Row>
             <Divider style={{ margin: '16px 0' }} />
             <Text strong style={{ fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('leaveReview.facilitySection')}</Text>
@@ -712,9 +715,9 @@ const LeaveReview: React.FC = () => {
             )}
             <Row gutter={[16, 8]} style={{ marginTop: 12 }}>
               <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.facilityName')}</Text><Text strong style={{ fontSize: 15 }}>{isAr ? facility.nameAr : facility.nameEn}</Text></Col>
-              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.facilityType')}</Text><Tag>{t(`facilityTypes.${facilityTypeKey(facility.type)}`)}</Tag>{facility.isBlocked && <Tag color="red" style={{ marginInlineStart: 4 }}>🚫 {t('queue.blocked')}</Tag>}</Col>
-              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.trustScore')}</Text>{trustStars(facility.trustScore)}{facility.trustScore !== null && <Text style={{ marginInlineStart: 6, fontSize: 12, color: '#888' }}>({Math.round(facility.trustScore * 100)}%)</Text>}</Col>
-              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12 }}>{t('leaveReview.facilityHistory', { count: facility.leavesFromFacility })}</Text></Col>
+              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.facilityType')}</Text><Tag>{t(`facilityTypes.${facilityTypeKey(facility.type ?? '')}`)}</Tag>{facility.isBlocked && <Tag color="red" style={{ marginInlineStart: 4 }}>🚫 {t('queue.blocked')}</Tag>}</Col>
+              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.trustScore')}</Text>{trustStars(facility.trustScore ?? null)}{facility.trustScore != null && <Text style={{ marginInlineStart: 6, fontSize: 12, color: '#888' }}>({Math.round(facility.trustScore * 100)}%)</Text>}</Col>
+              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12 }}>{t('leaveReview.facilityHistory', { count: facility.leavesFromFacility ?? 0 })}</Text></Col>
             </Row>
           </Card>
 

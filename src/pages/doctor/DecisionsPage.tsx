@@ -45,9 +45,9 @@ const DecisionsPage: React.FC = () => {
     const matchesSearch =
       !q ||
       l.refNumber.toLowerCase().includes(q) ||
-      l.employee.nameEn.toLowerCase().includes(q) ||
-      l.employee.nameAr.includes(q) ||
-      l.doctor.nameEn.toLowerCase().includes(q);
+      (l.employee?.nameEn ?? '').toLowerCase().includes(q) ||
+      (l.employee?.nameAr ?? '').includes(q) ||
+      (l.doctor?.nameEn ?? '').toLowerCase().includes(q);
     return matchesDecision && matchesSearch;
   });
 
@@ -103,9 +103,9 @@ const DecisionsPage: React.FC = () => {
       key: 'employee',
       render: (_, r) => (
         <div>
-          <Text strong style={{ fontSize: 13 }}>{isAr ? r.employee.nameAr : r.employee.nameEn}</Text>
+          <Text strong style={{ fontSize: 13 }}>{isAr ? r.employee?.nameAr : r.employee?.nameEn}</Text>
           <br />
-          <Text type="secondary" style={{ fontSize: 11 }}>{isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>{isAr ? r.employee?.department?.nameAr : r.employee?.department?.nameEn}</Text>
         </div>
       ),
     },
@@ -134,10 +134,10 @@ const DecisionsPage: React.FC = () => {
       key: 'doctor',
       render: (_, r) => (
         <div>
-          <Text style={{ fontSize: 12 }}>{isAr ? r.doctor.nameAr : r.doctor.nameEn}</Text>
+          <Text style={{ fontSize: 12 }}>{isAr ? r.doctor?.nameAr : r.doctor?.nameEn}</Text>
           <br />
-          <Tag style={{ fontSize: 10 }} color={r.doctor.rank === 'SPECIALIST' ? 'cyan' : r.doctor.rank === 'CONSULTANT' ? 'purple' : 'default'}>
-            {t(`doctorRanks.${r.doctor.rank.toLowerCase()}`)}
+          <Tag style={{ fontSize: 10 }} color={r.doctor?.rank === 'SPECIALIST' ? 'cyan' : r.doctor?.rank === 'CONSULTANT' ? 'purple' : 'default'}>
+            {t(`doctorRanks.${(r.doctor?.rank ?? '').toLowerCase()}`)}
           </Tag>
         </div>
       ),
@@ -147,8 +147,8 @@ const DecisionsPage: React.FC = () => {
       key: 'facility',
       render: (_, r) => (
         <div>
-          <Text style={{ fontSize: 12 }}>{isAr ? r.facility.nameAr : r.facility.nameEn}</Text>
-          {r.facility.isBlocked && (
+          <Text style={{ fontSize: 12 }}>{isAr ? r.facility?.nameAr : r.facility?.nameEn}</Text>
+          {r.facility?.isBlocked && (
             <Tag color="red" style={{ fontSize: 10, marginTop: 2, display: 'block', width: 'fit-content' }}>
               BLOCKED
             </Tag>

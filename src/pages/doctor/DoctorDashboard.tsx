@@ -169,10 +169,10 @@ const DoctorDashboard: React.FC = () => {
       key: 'employee',
       render: (_, r) => (
         <div>
-          <Text strong>{isAr ? r.employee.nameAr : r.employee.nameEn}</Text>
+          <Text strong>{isAr ? r.employee?.nameAr : r.employee?.nameEn}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}
+            {isAr ? r.employee?.department?.nameAr : r.employee?.department?.nameEn}
           </Text>
         </div>
       ),
@@ -190,7 +190,7 @@ const DoctorDashboard: React.FC = () => {
     {
       title: t('doctorDash.doctorRank'),
       key: 'rank',
-      render: (_, r) => <Tag color={rankTagColor(r.doctor.rank)}>{t(`doctorRanks.${r.doctor.rank.toLowerCase()}`)}</Tag>,
+      render: (_, r) => <Tag color={rankTagColor(r.doctor?.rank ?? '')}>{t(`doctorRanks.${(r.doctor?.rank ?? '').toLowerCase()}`)}</Tag>,
     },
     {
       title: t('common.status'),

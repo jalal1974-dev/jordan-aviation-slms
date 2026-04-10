@@ -198,7 +198,7 @@ const AdminDashboard: React.FC = () => {
     {
       title: t('adminDash.employee'),
       key: 'employee',
-      render: (_: unknown, r: SickLeave) => (isAr ? r.employee.nameAr : r.employee.nameEn),
+      render: (_: unknown, r: SickLeave) => (isAr ? r.employee?.nameAr : r.employee?.nameEn),
     },
     {
       title: t('adminDash.doctorDecision'),

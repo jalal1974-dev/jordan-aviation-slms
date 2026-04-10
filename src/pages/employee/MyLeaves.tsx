@@ -91,8 +91,8 @@ const MyLeaves: React.FC = () => {
       list = list.filter(
         (l) =>
           l.refNumber.toLowerCase().includes(q) ||
-          l.doctor.nameEn.toLowerCase().includes(q) ||
-          l.doctor.nameAr.includes(search)
+          (l.doctor?.nameEn ?? '').toLowerCase().includes(q) ||
+          (l.doctor?.nameAr ?? '').includes(search)
       );
     }
 
@@ -215,10 +215,10 @@ const MyLeaves: React.FC = () => {
       render: (_, record) => (
         <div>
           <Text style={{ fontSize: 13, display: 'block', fontWeight: 500 }}>
-            {isAr ? record.doctor.nameAr : record.doctor.nameEn}
+            {isAr ? record.doctor?.nameAr : record.doctor?.nameEn}
           </Text>
           <Tag color="blue" style={{ fontSize: 10, marginTop: 2 }}>
-            {getRankLabel(record.doctor.rank)}
+            {getRankLabel(record.doctor?.rank ?? '')}
           </Tag>
         </div>
       ),
@@ -231,10 +231,10 @@ const MyLeaves: React.FC = () => {
       render: (_, record) => (
         <div>
           <Text style={{ fontSize: 12, display: 'block' }}>
-            {isAr ? record.facility.nameAr : record.facility.nameEn}
+            {isAr ? record.facility?.nameAr : record.facility?.nameEn}
           </Text>
           <Tag color="default" style={{ fontSize: 10, marginTop: 2 }}>
-            {getFacilityTypeLabel(record.facility.type)}
+            {getFacilityTypeLabel(record.facility?.type ?? '')}
           </Tag>
         </div>
       ),

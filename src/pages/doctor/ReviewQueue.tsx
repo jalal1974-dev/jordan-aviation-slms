@@ -48,15 +48,15 @@ const PENDING_STATUSES: SickLeave['status'][] = [
 const calculatePriority = (leave: SickLeave): Priority => {
   const risk = leave.aiAnalysis?.riskScore ?? 0;
   if (
-    leave.facility.isBlocked ||
-    (leave.doctor.rank === 'GP' && leave.totalDays > 1) ||
+    leave.facility?.isBlocked ||
+    (leave.doctor?.rank === 'GP' && leave.totalDays > 1) ||
     risk > 70 ||
     leave.totalDays > 4
   )
     return 'HIGH';
   if (
-    (leave.doctor.rank === 'SPECIALIST' && leave.totalDays > 2) ||
-    leave.documents.length < 2 ||
+    (leave.doctor?.rank === 'SPECIALIST' && leave.totalDays > 2) ||
+    (leave.documents?.length ?? 0) < 2 ||
     risk > 30
   )
     return 'MEDIUM';
@@ -79,7 +79,7 @@ const isFrequentLeave = (leave: SickLeave, allLeaves: SickLeave[]): boolean => {
   return count > 3;
 };
 
-const hasMissingDocs = (leave: SickLeave): boolean => leave.documents.length < 2;
+const hasMissingDocs = (leave: SickLeave): boolean => (leave.documents?.length ?? 0) < 2;
 
 const rankTagColor = (rank: string) => {
   if (rank === 'GP' || rank === 'RESIDENT') return 'default';
@@ -160,8 +160,8 @@ const ReviewQueue: React.FC = () => {
     else if (segment === 'DOCS') result = result.filter((l) => l.status === 'DOCS_REQUESTED');
 
     if (statusFilter.length > 0) result = result.filter((l) => statusFilter.includes(l.status));
-    if (deptFilter) result = result.filter((l) => l.employee.department.id === deptFilter);
-    if (rankFilter) result = result.filter((l) => l.doctor.rank === rankFilter);
+    if (deptFilter) result = result.filter((l) => l.employee?.department?.id === deptFilter);
+    if (rankFilter) result = result.filter((l) => l.doctor?.rank === rankFilter);
     if (daysFilter) {
       if (daysFilter === '1') result = result.filter((l) => l.totalDays === 1);
       else if (daysFilter === '2-3') result = result.filter((l) => l.totalDays >= 2 && l.totalDays <= 3);
@@ -173,9 +173,9 @@ const ReviewQueue: React.FC = () => {
       result = result.filter(
         (l) =>
           l.refNumber.toLowerCase().includes(q) ||
-          l.employee.nameEn.toLowerCase().includes(q) ||
-          l.employee.nameAr.includes(searchText) ||
-          l.doctor.nameEn.toLowerCase().includes(q)
+          (l.employee?.nameEn ?? '').toLowerCase().includes(q) ||
+          (l.employee?.nameAr ?? '').includes(searchText) ||
+          (l.doctor?.nameEn ?? '').toLowerCase().includes(q)
       );
     }
     return result;
@@ -308,22 +308,22 @@ const ReviewQueue: React.FC = () => {
     {
       title: t('queue.employee'),
       key: 'employee',
-      sorter: (a, b) => a.employee.nameEn.localeCompare(b.employee.nameEn),
+      sorter: (a, b) => (a.employee?.nameEn ?? '').localeCompare(b.employee?.nameEn ?? ''),
       render: (_, r) => (
         <Space>
           <Avatar
             size={36}
             style={{ background: getAvatarColor(r.employeeId), fontWeight: 700, flexShrink: 0 }}
           >
-            {(isAr ? r.employee.nameAr : r.employee.nameEn).charAt(0)}
+            {(isAr ? r.employee?.nameAr ?? '' : r.employee?.nameEn ?? '').charAt(0)}
           </Avatar>
           <div>
             <Text strong style={{ fontSize: 13 }}>
-              {isAr ? r.employee.nameAr : r.employee.nameEn}
+              {isAr ? r.employee?.nameAr : r.employee?.nameEn}
             </Text>
             <br />
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}
+              {isAr ? r.employee?.department?.nameAr : r.employee?.department?.nameEn}
             </Text>
           </div>
         </Space>
@@ -369,13 +369,13 @@ const ReviewQueue: React.FC = () => {
     {
       title: t('queue.doctor'),
       key: 'doctor',
-      sorter: (a, b) => a.doctor.nameEn.localeCompare(b.doctor.nameEn),
+      sorter: (a, b) => (a.doctor?.nameEn ?? '').localeCompare(b.doctor?.nameEn ?? ''),
       render: (_, r) => (
         <div>
-          <Text style={{ fontSize: 13 }}>{isAr ? r.doctor.nameAr : r.doctor.nameEn}</Text>
+          <Text style={{ fontSize: 13 }}>{isAr ? r.doctor?.nameAr : r.doctor?.nameEn}</Text>
           <br />
-          <Tag color={rankTagColor(r.doctor.rank)} style={{ fontSize: 11, marginTop: 2 }}>
-            {t(`doctorRanks.${r.doctor.rank.toLowerCase()}`)}
+          <Tag color={rankTagColor(r.doctor?.rank ?? '')} style={{ fontSize: 11, marginTop: 2 }}>
+            {t(`doctorRanks.${(r.doctor?.rank ?? '').toLowerCase()}`)}
           </Tag>
         </div>
       ),
@@ -383,15 +383,15 @@ const ReviewQueue: React.FC = () => {
     {
       title: t('queue.facility'),
       key: 'facility',
-      sorter: (a, b) => a.facility.nameEn.localeCompare(b.facility.nameEn),
+      sorter: (a, b) => (a.facility?.nameEn ?? '').localeCompare(b.facility?.nameEn ?? ''),
       render: (_, r) => (
         <div>
-          <Text style={{ fontSize: 13 }}>{isAr ? r.facility.nameAr : r.facility.nameEn}</Text>
+          <Text style={{ fontSize: 13 }}>{isAr ? r.facility?.nameAr : r.facility?.nameEn}</Text>
           <br />
-          {r.facility.isBlocked ? (
+          {r.facility?.isBlocked ? (
             <Tag color="red" style={{ fontSize: 11 }}>🚫 {t('queue.blocked')}</Tag>
           ) : (
-            trustStars(r.facility.trustScore)
+            trustStars(r.facility?.trustScore ?? null)
           )}
         </div>
       ),

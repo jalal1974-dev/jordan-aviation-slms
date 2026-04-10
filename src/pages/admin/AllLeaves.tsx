@@ -174,15 +174,15 @@ const AllLeaves: React.FC = () => {
     {
       title: t('adminLeaves.employee'),
       key: 'employee',
-      sorter: (a: SickLeave, b: SickLeave) => a.employee.nameEn.localeCompare(b.employee.nameEn),
+      sorter: (a: SickLeave, b: SickLeave) => (a.employee?.nameEn ?? '').localeCompare(b.employee?.nameEn ?? ''),
       render: (_: unknown, r: SickLeave) => (
         <div>
           <Text strong style={{ fontSize: 13 }}>
-            {isAr ? r.employee.nameAr : r.employee.nameEn}
+            {isAr ? r.employee?.nameAr : r.employee?.nameEn}
           </Text>
           <br />
           <Text type="secondary" style={{ fontSize: 11 }}>
-            {isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}
+            {isAr ? r.employee?.department?.nameAr : r.employee?.department?.nameEn}
           </Text>
         </div>
       ),
@@ -208,9 +208,9 @@ const AllLeaves: React.FC = () => {
       key: 'doctor',
       render: (_: unknown, r: SickLeave) => (
         <div>
-          <Text style={{ fontSize: 12 }}>{isAr ? r.doctor.nameAr : r.doctor.nameEn}</Text>
+          <Text style={{ fontSize: 12 }}>{isAr ? r.doctor?.nameAr : r.doctor?.nameEn}</Text>
           <br />
-          <Tag color="blue" style={{ fontSize: 10 }}>{r.doctor.rank}</Tag>
+          <Tag color="blue" style={{ fontSize: 10 }}>{r.doctor?.rank}</Tag>
         </div>
       ),
     },
@@ -219,8 +219,8 @@ const AllLeaves: React.FC = () => {
       key: 'facility',
       render: (_: unknown, r: SickLeave) => (
         <div>
-          <Text style={{ fontSize: 12 }}>{isAr ? r.facility.nameAr : r.facility.nameEn}</Text>
-          {r.facility.isBlocked && (
+          <Text style={{ fontSize: 12 }}>{isAr ? r.facility?.nameAr : r.facility?.nameEn}</Text>
+          {r.facility?.isBlocked && (
             <>
               <br />
               <Tag color="red" style={{ fontSize: 10 }}>BLOCKED</Tag>

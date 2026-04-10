@@ -560,12 +560,12 @@ const LeaveDetail: React.FC = () => {
               </Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Text style={{ fontWeight: 600, fontSize: 14 }}>
-                  {isAr ? leave.doctor.nameAr : leave.doctor.nameEn}
+                  {isAr ? leave.doctor?.nameAr : leave.doctor?.nameEn}
                 </Text>
-                <Tag color="blue">{RANK_LABEL[leave.doctor.rank] || leave.doctor.rank}</Tag>
-                {leave.facility.isBlocked && <Tag color="red">BLOCKED</Tag>}
+                <Tag color="blue">{RANK_LABEL[leave.doctor?.rank] || leave.doctor?.rank}</Tag>
+                {leave.facility?.isBlocked && <Tag color="red">BLOCKED</Tag>}
               </div>
-              <div style={{ marginTop: 4 }}>{renderStars(leave.doctor.trustScore)}</div>
+              <div style={{ marginTop: 4 }}>{renderStars(leave.doctor?.trustScore)}</div>
             </div>
 
             {/* Facility */}
@@ -575,12 +575,12 @@ const LeaveDetail: React.FC = () => {
               </Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Text style={{ fontWeight: 600, fontSize: 14 }}>
-                  {isAr ? leave.facility.nameAr : leave.facility.nameEn}
+                  {isAr ? leave.facility?.nameAr : leave.facility?.nameEn}
                 </Text>
-                <Tag color="default">{FACILITY_TYPE_LABEL[leave.facility.type] || leave.facility.type}</Tag>
+                <Tag color="default">{FACILITY_TYPE_LABEL[leave.facility?.type] || leave.facility?.type}</Tag>
               </div>
-              <div style={{ marginTop: 4 }}>{renderStars(leave.facility.trustScore)}</div>
-              {leave.facility.isBlocked && (
+              <div style={{ marginTop: 4 }}>{renderStars(leave.facility?.trustScore)}</div>
+              {leave.facility?.isBlocked && (
                 <Alert
                   type="error"
                   showIcon
@@ -879,7 +879,7 @@ const LeaveDetail: React.FC = () => {
             style={{ borderRadius: 12, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             <Row gutter={[10, 10]} style={{ marginBottom: 16 }}>
-              {leave.documents.map((doc) => {
+              {(leave.documents ?? []).map((doc) => {
                 const isPdf = doc.fileType === 'application/pdf';
                 return (
                   <Col key={doc.id} xs={24} sm={12}>
@@ -948,17 +948,17 @@ const LeaveDetail: React.FC = () => {
               </Text>
               {[
                 {
-                  ok: leave.documents.some((d) => d.classification === 'SICK_LEAVE_CERTIFICATE'),
+                  ok: (leave.documents ?? []).some((d) => d.classification === 'SICK_LEAVE_CERTIFICATE'),
                   label: t('submitLeave.sickLeaveCertificate'),
                   required: true,
                 },
                 {
-                  ok: leave.documents.some((d) => d.classification === 'FINANCIAL_RECEIPT'),
+                  ok: (leave.documents ?? []).some((d) => d.classification === 'FINANCIAL_RECEIPT'),
                   label: t('submitLeave.financialReceipt'),
                   required: true,
                 },
                 {
-                  ok: leave.documents.some((d) => d.classification === 'PRESCRIPTION'),
+                  ok: (leave.documents ?? []).some((d) => d.classification === 'PRESCRIPTION'),
                   label: t('submitLeave.prescription'),
                   required: false,
                 },
