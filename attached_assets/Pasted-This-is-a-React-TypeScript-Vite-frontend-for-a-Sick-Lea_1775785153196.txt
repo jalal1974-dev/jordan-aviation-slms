@@ -1,0 +1,157 @@
+This is a React + TypeScript + Vite frontend for a Sick Leave Management System. It has been PARTIALLY connected to a backend API. Many pages are already updated, but some still import from mockData.ts and need to use the real API instead.
+
+The backend API is running at: https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api
+
+The API service file already exists at src/services/api.ts with these exports:
+- authAPI: { login, register, getMe }
+- leavesAPI: { getAll, getById, submit, updateStatus, submitDecision }
+- employeesAPI: { getAll, getById, update }
+- facilitiesAPI: { getAll, create, update, toggleBlock }
+- doctorsAPI: { getAll, create, update }
+- circularsAPI: { getAll, create, update, delete }
+- penaltiesAPI: { getAll, apply, revoke }
+- notificationsAPI: { getAll, markRead, markAllRead, getUnreadCount }
+- reportsAPI: { getOverview, getByDepartment, getByDoctor, getByFacility, getViolations }
+
+FIRST: Run npm install
+
+THEN: Create .env file in project root with:
+VITE_API_URL=https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api
+
+NOW: Update these files to remove ALL mockData imports and use the real API. For EACH file, follow this exact pattern:
+
+PATTERN:
+1. Remove: import { anything } from '../../services/mockData' or '../services/mockData'
+2. Add: import { relevantAPI } from '../../services/api'  
+3. Add: import { Spin, message, Empty } from 'antd' (if not already imported)
+4. Add state: const [data, setData] = useState<any[]>([]); const [loading, setLoading] = useState(true);
+5. Add useEffect fetch with try/catch/finally
+6. Wrap return with: if (loading) return <Spin size="large" style={{display:'flex',justifyContent:'center',marginTop:100}} />
+7. Keep ALL existing UI, design, tables, charts, filters EXACTLY the same
+8. Just replace the data source
+
+=== FILE 1: src/pages/doctor/ReviewQueue.tsx ===
+- Remove ALL mockData imports (mockLeaves, mockEmployees, departments, etc.)
+- Import { leavesAPI } from '../../services/api'
+- Add state: const [leaves, setLeaves] = useState<any[]>([]); const [loading, setLoading] = useState(true);
+- useEffect: fetch leaves with leavesAPI.getAll(), set leaves from response.data.data
+- Replace any mockLeaves or mockSickLeaves references with the fetched leaves array
+- Replace any mockEmployees lookups: instead of finding employee from mock array, use leave.employee from the API response (API includes employee data in each leave)
+- Replace any department lookups: use leave.employee?.department from API
+- Remove isFrequentLeave function or replace with: const isFrequentLeave = (empId: string) => leaves.filter(l => l.employeeId === empId).length > 2
+- All filters should work on the fetched data (filter locally)
+- Add Spin loading state
+- Keep ALL tabs, filters, table columns, priority pills, AI tags exactly the same
+
+=== FILE 2: src/pages/doctor/LeaveReview.tsx ===
+- Remove ALL mockData imports
+- Import { leavesAPI } from '../../services/api'
+- Import { useParams, useNavigate } from 'react-router-dom'
+- Get leave ID from URL: const { id } = useParams()
+- Add state: const [leave, setLeave] = useState<any>(null); const [loading, setLoading] = useState(true);
+- useEffect: fetch leave with leavesAPI.getById(id), set from response.data.data
+- The API returns the leave with employee, doctor, facility, documents, decision included
+- For decision submit: await leavesAPI.submitDecision(id, decisionData), then message.success('Decision submitted'), navigate('/doctor/review-queue')
+- Add Spin loading state
+- Keep ALL existing two-column layout, AI gauges, decision form exactly the same
+
+=== FILE 3: src/pages/admin/AllLeaves.tsx ===
+- Remove ALL mockData imports
+- Import { leavesAPI } from '../../services/api'
+- Add state and useEffect to fetch all leaves
+- API returns leaves with employee, doctor, facility included
+- All filters work on fetched data (filter locally)
+- Keep ALL existing UI exactly the same
+
+=== FILE 4: src/pages/admin/EmployeesPage.tsx ===
+- Remove ALL mockData imports
+- Import { employeesAPI } from '../../services/api'
+- Fetch employees with employeesAPI.getAll()
+- API returns employees with department included
+- Keep ALL existing UI exactly the same
+
+=== FILE 5: src/pages/admin/FacilitiesPage.tsx ===
+- Remove ALL mockData imports
+- Import { facilitiesAPI } from '../../services/api'
+- Fetch with facilitiesAPI.getAll()
+- For block/unblock: await facilitiesAPI.toggleBlock(id, { isBlocked: true/false, blockReason })
+- Refresh data after block/unblock
+- Keep ALL existing UI exactly the same
+
+=== FILE 6: src/pages/admin/DoctorsPage.tsx ===
+- Remove ALL mockData imports
+- Import { doctorsAPI } from '../../services/api'
+- Fetch with doctorsAPI.getAll()
+- Keep ALL existing UI exactly the same
+
+=== FILE 7: src/pages/admin/PenaltiesPage.tsx ===
+- Remove ALL mockData imports
+- Import { penaltiesAPI } from '../../services/api'
+- Fetch with penaltiesAPI.getAll()
+- Apply penalty: await penaltiesAPI.apply(data)
+- Revoke: await penaltiesAPI.revoke(id)
+- Refresh after actions
+- Keep ALL existing UI exactly the same
+
+=== FILE 8: src/pages/admin/ReportsPage.tsx ===
+- Remove ALL mockData imports
+- Import { reportsAPI } from '../../services/api'
+- Fetch based on active tab:
+  - reportsAPI.getOverview() for overview stats
+  - reportsAPI.getByDepartment() for department tab
+  - reportsAPI.getByDoctor() for doctor tab
+  - reportsAPI.getByFacility() for facility tab
+  - reportsAPI.getViolations() for violations tab
+- Keep ALL existing charts, tables, tabs exactly the same
+
+=== FILE 9: src/components/layout/AppLayout.tsx ===
+- Import { useAuthStore } from '../../store/authStore'
+- Import { notificationsAPI } from '../../services/api'
+- Get user from useAuthStore(): const { user, logout } = useAuthStore()
+- Replace any mock user data with real user from store
+- Show user.nameEn or user.nameAr in header/sidebar based on language
+- Show user.role for role display
+- Fetch unread count: notificationsAPI.getUnreadCount() in useEffect, show on bell icon badge
+- Logout button: call logout() then navigate to /login
+- Keep ALL existing sidebar, header, menu items, gold active styling exactly the same
+
+=== FILE 10: src/pages/admin/SendResultModal.tsx (if it imports mockData) ===
+- Remove mockData imports if any
+- Use the leave data passed as props instead
+- Keep existing email preview UI
+
+=== FILE 11: src/pages/doctor/DecisionsPage.tsx (verify it's updated) ===
+- If it still imports from mockData, update it
+- Import { leavesAPI } from '../../services/api'
+- Fetch doctor's decisions from API
+
+=== FILE 12: src/pages/doctor/FacilitiesAnalysis.tsx (verify it's updated) ===
+- If it still imports from mockData, update it
+- Import { facilitiesAPI } from '../../services/api'
+
+=== FILE 13: src/pages/doctor/DoctorsAnalysis.tsx (verify it's updated) ===
+- If it still imports from mockData, update it
+- Import { doctorsAPI } from '../../services/api'
+
+=== FINAL CLEANUP ===
+
+After updating all files:
+1. Search the entire src/ folder for any remaining "mockData" imports
+2. If ANY file still imports from mockData, fix it
+3. Run the app with npm run dev
+4. Test login with: employee@jordanaviation.jo / Test1234
+5. Verify the app loads without errors
+6. Do NOT delete mockData.ts file yet (some types might reference it)
+
+=== CRITICAL RULES ===
+
+1. Do NOT change ANY visual design, colors, layouts, fonts, or styling
+2. Do NOT delete or rename any pages/components
+3. ONLY change where data comes from (mock → real API)
+4. Add loading spinners (antd Spin) to every page while fetching
+5. Add error handling (message.error) for failed API calls
+6. If API returns data in slightly different format, map it to match existing component expectations
+7. Keep ALL Arabic/English bilingual support working
+8. Keep ALL RTL/LTR support working
+9. If a page already uses API (not mockData), leave it alone
+10. The backend includes related data in responses (leave includes employee, doctor, facility) so you don't need separate API calls to look up related entities

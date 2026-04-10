@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Card, Row, Col, Table, Tag, Button, Statistic,
-  Typography, Space, Progress, Alert, message,
+  Typography, Space, Progress, Alert, message, Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { BankOutlined, StopOutlined } from '@ant-design/icons';
@@ -12,7 +12,6 @@ import {
 } from 'recharts';
 import { facilitiesAPI, leavesAPI } from '../../services/api';
 import type { Facility } from '../../types';
-import { mockFacilities, mockSickLeaves } from '../../services/mockData';
 
 const { Title, Text } = Typography;
 const NAVY = '#0a1628';
@@ -53,11 +52,32 @@ const FacilitiesAnalysis: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAr         = i18n.language === 'ar';
 
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      facilitiesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setFacilities(Array.isArray(data) ? data : []);
+      }),
+      leavesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setLeaves(Array.isArray(data) ? data : []);
+      }),
+    ])
+      .catch(() => message.error('Failed to load data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+
   /* ── Build enriched facility list ── */
-  const enriched: FacilityWithStats[] = mockFacilities.map((f) => {
-    const leaves      = mockSickLeaves.filter((l) => l.facility.id === f.id);
-    const flaggedCount = leaves.filter((l) => (l.aiAnalysis?.ruleViolations?.length ?? 0) > 0).length;
-    const flagRate     = leaves.length > 0 ? flaggedCount / leaves.length : 0;
+  const enriched: FacilityWithStats[] = facilities.map((f) => {
+    const facLeaves      = leaves.filter((l) => l.facility?.id === f.id);
+    const flaggedCount = facLeaves.filter((l) => (l.aiAnalysis?.ruleViolations?.length ?? 0) > 0).length;
+    const flagRate     = facLeaves.length > 0 ? flaggedCount / facLeaves.length : 0;
     return { ...f, flagRate, flaggedCount };
   });
 

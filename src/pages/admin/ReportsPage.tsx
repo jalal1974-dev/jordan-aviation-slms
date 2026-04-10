@@ -11,6 +11,8 @@ import {
   DatePicker,
   notification,
   Space,
+  Spin,
+  message,
 } from 'antd';
 import {
   BarChartOutlined,
@@ -34,7 +36,7 @@ import {
   Legend,
 } from 'recharts';
 import { leavesAPI, penaltiesAPI, doctorsAPI, facilitiesAPI } from '../../services/api';
-import type { SickLeave, Doctor, Facility } from '../../types';
+import type { Doctor, Facility } from '../../types';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -71,14 +73,44 @@ const ReportsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
   const [activeTab, setActiveTab] = useState('overview');
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [penalties, setPenalties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const total = mockSickLeaves.length;
-  const approved = mockSickLeaves.filter((l) => l.status === 'APPROVED').length;
-  const partial = mockSickLeaves.filter((l) => l.status === 'PARTIALLY_APPROVED').length;
-  const rejected = mockSickLeaves.filter((l) => l.status === 'REJECTED').length;
+  useEffect(() => {
+    Promise.all([
+      leavesAPI.getAll().then((r) => {
+        const d = r.data?.data ?? r.data ?? [];
+        setLeaves(Array.isArray(d) ? d : []);
+      }),
+      doctorsAPI.getAll().then((r) => {
+        const d = r.data?.data ?? r.data ?? [];
+        setDoctors(Array.isArray(d) ? d : []);
+      }),
+      facilitiesAPI.getAll().then((r) => {
+        const d = r.data?.data ?? r.data ?? [];
+        setFacilities(Array.isArray(d) ? d : []);
+      }),
+      penaltiesAPI.getAll().then((r) => {
+        const d = r.data?.data ?? r.data ?? [];
+        setPenalties(Array.isArray(d) ? d : []);
+      }),
+    ])
+      .catch(() => message.error('Failed to load report data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const total = leaves.length;
+  const approved = leaves.filter((l) => l.status === 'APPROVED').length;
+  const partial = leaves.filter((l) => l.status === 'PARTIALLY_APPROVED').length;
+  const rejected = leaves.filter((l) => l.status === 'REJECTED').length;
   const pending = total - approved - partial - rejected;
-  const avgDays = (mockSickLeaves.reduce((s, l) => s + l.totalDays, 0) / total).toFixed(1);
-  const totalDaysUsed = mockSickLeaves.filter((l) => l.status === 'APPROVED').reduce((s, l) => s + (l.approvedDays ?? l.totalDays), 0);
+  const avgDays = total > 0 ? (leaves.reduce((s, l) => s + (l.totalDays ?? 0), 0) / total).toFixed(1) : '0.0';
+  const totalDaysUsed = leaves
+    .filter((l) => l.status === 'APPROVED')
+    .reduce((s, l) => s + (l.approvedDays ?? l.totalDays ?? 0), 0);
 
   const statusChartData = [
     { name: t('statuses.approved'), value: approved, color: STATUS_COLORS.APPROVED },
@@ -87,30 +119,32 @@ const ReportsPage: React.FC = () => {
     { name: t('rptPage.pending'), value: pending, color: STATUS_COLORS.PENDING },
   ];
 
-  const monthlyData = [
-    { month: 'Jan', leaves: 3 },
-    { month: 'Feb', leaves: 2 },
-    { month: 'Mar', leaves: 5 },
-    { month: 'Apr', leaves: 4 },
-    { month: 'May', leaves: 3 },
-    { month: 'Jun', leaves: 2 },
-    { month: 'Jul', leaves: 6 },
-    { month: 'Aug', leaves: 4 },
-    { month: 'Sep', leaves: 3 },
-    { month: 'Oct', leaves: 5 },
-    { month: 'Nov', leaves: 4 },
-    { month: 'Dec', leaves: total },
-  ];
+  const monthlyData = (() => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months.map((month, idx) => ({
+      month,
+      leaves: leaves.filter((l) => {
+        const d = new Date(l.submittedAt ?? l.fromDate ?? '');
+        return d.getMonth() === idx;
+      }).length,
+    }));
+  })();
 
-  const deptData = mockDepartments.map((d) => {
-    const leaves = mockSickLeaves.filter((l) => l.employee.department.id === d.id);
-    return {
-      dept: isAr ? d.nameAr : d.nameEn,
-      total: leaves.length,
-      approved: leaves.filter((l) => l.status === 'APPROVED').length,
-      rejected: leaves.filter((l) => l.status === 'REJECTED').length,
-    };
-  }).filter((d) => d.total > 0);
+  const deptData = (() => {
+    const deptMap = new Map<string, { dept: string; total: number; approved: number; rejected: number }>();
+    leaves.forEach((l) => {
+      const dept = l.employee?.department;
+      if (!dept) return;
+      const key = dept.id;
+      const name = isAr ? dept.nameAr : dept.nameEn;
+      if (!deptMap.has(key)) deptMap.set(key, { dept: name, total: 0, approved: 0, rejected: 0 });
+      const entry = deptMap.get(key)!;
+      entry.total++;
+      if (l.status === 'APPROVED') entry.approved++;
+      if (l.status === 'REJECTED') entry.rejected++;
+    });
+    return Array.from(deptMap.values()).filter((d) => d.total > 0);
+  })();
 
   const deptColumns = [
     { title: t('rptPage.department'), dataIndex: 'dept', key: 'dept' },
@@ -119,17 +153,17 @@ const ReportsPage: React.FC = () => {
     { title: t('statuses.rejected'), dataIndex: 'rejected', key: 'rejected', render: (n: number) => <Text style={{ color: '#ff4d4f' }}>{n}</Text> },
   ];
 
-  const doctorData = mockDoctors.map((d) => {
-    const leaves = mockSickLeaves.filter((l) => l.doctor.id === d.id);
-    const appr = leaves.filter((l) => l.status === 'APPROVED').length;
-    const rej = leaves.filter((l) => l.status === 'REJECTED').length;
+  const doctorData = doctors.map((d) => {
+    const docLeaves = leaves.filter((l) => l.doctor?.id === d.id);
+    const appr = docLeaves.filter((l) => l.status === 'APPROVED').length;
+    const rej = docLeaves.filter((l) => l.status === 'REJECTED').length;
     return {
       key: d.id,
       name: isAr ? d.nameAr : d.nameEn,
       rank: d.rank,
       issued: d.leavesIssued,
-      approvedRate: leaves.length ? Math.round((appr / leaves.length) * 100) + '%' : '—',
-      rejectedRate: leaves.length ? Math.round((rej / leaves.length) * 100) + '%' : '—',
+      approvedRate: docLeaves.length ? Math.round((appr / docLeaves.length) * 100) + '%' : '—',
+      rejectedRate: docLeaves.length ? Math.round((rej / docLeaves.length) * 100) + '%' : '—',
       trustScore: d.trustScore?.toFixed(2) ?? 'N/A',
     };
   });
@@ -145,19 +179,19 @@ const ReportsPage: React.FC = () => {
 
   const rankPieData = (['GP', 'RESIDENT', 'SPECIALIST', 'CONSULTANT'] as const).map((rank) => ({
     name: rank,
-    value: mockSickLeaves.filter((l) => l.doctor.rank === rank).length,
+    value: leaves.filter((l) => l.doctor?.rank === rank).length,
   })).filter((r) => r.value > 0);
 
-  const facilityData = mockFacilities.map((f) => {
-    const leaves = mockSickLeaves.filter((l) => l.facility.id === f.id);
-    const appr = leaves.filter((l) => l.status === 'APPROVED').length;
+  const facilityData = facilities.map((f) => {
+    const facLeaves = leaves.filter((l) => l.facility?.id === f.id);
+    const appr = facLeaves.filter((l) => l.status === 'APPROVED').length;
     const flagRate = f.trustScore ? Math.round((1 - f.trustScore) * 100) + '%' : '—';
     return {
       key: f.id,
       name: isAr ? f.nameAr : f.nameEn,
       type: f.type,
-      leaves: leaves.length,
-      approvedRate: leaves.length ? Math.round((appr / leaves.length) * 100) + '%' : '—',
+      leaves: facLeaves.length,
+      approvedRate: facLeaves.length ? Math.round((appr / facLeaves.length) * 100) + '%' : '—',
       flagRate,
       trustScore: f.trustScore?.toFixed(2) ?? 'N/A',
       isBlocked: f.isBlocked,
@@ -184,16 +218,24 @@ const ReportsPage: React.FC = () => {
     .slice(0, 8)
     .map((f) => ({ name: f.name.substring(0, 14), leaves: f.leaves }));
 
-  const violationsMonthly = [
-    { month: 'Jan', violations: 0, first: 0, second: 0, third: 0 },
-    { month: 'Feb', violations: 0, first: 0, second: 0, third: 0 },
-    { month: 'Mar', violations: mockViolations.length, first: mockViolations.filter((v) => v.violationNumber === 1).length, second: 0, third: 0 },
-    { month: 'Apr', violations: 0, first: 0, second: 0, third: 0 },
-    { month: 'May', violations: 0, first: 0, second: 0, third: 0 },
-    { month: 'Jun', violations: 0, first: 0, second: 0, third: 0 },
-  ];
+  const violationsMonthly = (() => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months.slice(0, 6).map((month, idx) => {
+      const monthPenalties = penalties.filter((p) => {
+        const d = new Date(p.date ?? p.createdAt ?? '');
+        return d.getMonth() === idx;
+      });
+      return {
+        month,
+        violations: monthPenalties.length,
+        first:  monthPenalties.filter((p) => p.violationNumber === 1).length,
+        second: monthPenalties.filter((p) => p.violationNumber === 2).length,
+        third:  monthPenalties.filter((p) => p.violationNumber === 3).length,
+      };
+    });
+  })();
 
-  const totalDeductions = mockViolations.reduce((s, v) => s + (v.penaltyDays ?? 0), 0);
+  const totalDeductions = penalties.reduce((s, p) => s + (p.penaltyDays ?? 0), 0);
 
   const handleExport = (type: 'pdf' | 'excel') => {
     notification.success({
@@ -201,6 +243,8 @@ const ReportsPage: React.FC = () => {
       description: t('rptPage.exportDesc'),
     });
   };
+
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
 
   const tabItems = [
     {
@@ -390,7 +434,7 @@ const ReportsPage: React.FC = () => {
         <div>
           <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
             <Col xs={12} sm={8}>
-              <StatCard title={t('penPage.totalViolations')} value={mockViolations.length} accentColor="#ff4d4f" />
+              <StatCard title={t('penPage.totalViolations')} value={penalties.length} accentColor="#ff4d4f" />
             </Col>
             <Col xs={12} sm={8}>
               <StatCard title={t('rptPage.totalDeductions')} value={`${totalDeductions} ${t('penPage.days')}`} accentColor="#fa8c16" />

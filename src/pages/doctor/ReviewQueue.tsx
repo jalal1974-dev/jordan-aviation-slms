@@ -323,7 +323,7 @@ const ReviewQueue: React.FC = () => {
             </Text>
             <br />
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {isAr ? r.employee.department.nameAr : r.employee.department.nameEn}
+              {isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}
             </Text>
           </div>
         </Space>

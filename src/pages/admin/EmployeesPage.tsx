@@ -14,6 +14,8 @@ import {
   Avatar,
   notification,
   Space,
+  Spin,
+  message,
 } from 'antd';
 import {
   TeamOutlined,
@@ -25,7 +27,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { employeesAPI, leavesAPI, penaltiesAPI } from '../../services/api';
-import type { User, SickLeave, Violation } from '../../types';
+import type { User } from '../../types';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -73,57 +75,87 @@ const EmployeesPage: React.FC = () => {
   const [filterDept, setFilterDept] = useState('');
   const [filterRole, setFilterRole] = useState('');
 
+  const [employees, setEmployees] = useState<User[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [violations, setViolations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      employeesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setEmployees(Array.isArray(data) ? data : []);
+      }),
+      leavesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setLeaves(Array.isArray(data) ? data : []);
+      }),
+      penaltiesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setViolations(Array.isArray(data) ? data : []);
+      }),
+    ])
+      .catch(() => message.error('Failed to load data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const uniqueDepartments = useMemo(() => {
+    const map = new Map<string, User['department']>();
+    employees.forEach((u) => { if (u.department) map.set(u.department.id, u.department); });
+    return Array.from(map.values());
+  }, [employees]);
+
   const filtered = useMemo(() => {
-    return mockUsers.filter((u) => {
+    return employees.filter((u) => {
       if (search) {
         const q = search.toLowerCase();
         if (
           !u.nameEn.toLowerCase().includes(q) &&
           !u.nameAr.includes(q) &&
           !u.email.toLowerCase().includes(q) &&
-          !u.employeeNumber.toLowerCase().includes(q)
+          !(u.employeeNumber ?? '').toLowerCase().includes(q)
         )
           return false;
       }
-      if (filterDept && u.department.id !== filterDept) return false;
+      if (filterDept && u.department?.id !== filterDept) return false;
       if (filterRole && u.role !== filterRole) return false;
       return true;
     });
-  }, [search, filterDept, filterRole]);
+  }, [employees, search, filterDept, filterRole]);
 
   const onLeaveCount = useMemo(
     () =>
-      mockUsers.filter((u) =>
-        mockSickLeaves.some(
+      employees.filter((u) =>
+        leaves.some(
           (l) =>
             l.employeeId === u.id &&
             ['SUBMITTED', 'PROCESSING', 'UNDER_REVIEW', 'EXAMINATION_REQUESTED', 'DOCS_REQUESTED'].includes(l.status)
         )
       ).length,
-    []
+    [employees, leaves]
   );
 
   const withViolations = useMemo(
-    () => new Set(mockViolations.map((v) => v.employeeId)).size,
-    []
+    () => new Set(violations.map((v: any) => v.employeeId)).size,
+    [violations]
   );
 
   const getEmployeeViolations = (userId: string) =>
-    mockViolations.filter((v) => v.employeeId === userId);
+    violations.filter((v: any) => v.employeeId === userId);
 
   const getEmployeeLeaves = (userId: string) =>
-    mockSickLeaves.filter((l) => l.employeeId === userId);
+    leaves.filter((l) => l.employeeId === userId);
 
   const expandedRowRender = (record: User) => {
-    const leaves = getEmployeeLeaves(record.id);
-    const violations = getEmployeeViolations(record.id);
-    const approved = leaves.filter((l) => l.status === 'APPROVED').length;
-    const rejected = leaves.filter((l) => l.status === 'REJECTED').length;
-    const pending = leaves.filter(
+    const empLeaves = getEmployeeLeaves(record.id);
+    const empViolations = getEmployeeViolations(record.id);
+    const approved = empLeaves.filter((l) => l.status === 'APPROVED').length;
+    const rejected = empLeaves.filter((l) => l.status === 'REJECTED').length;
+    const pending = empLeaves.filter(
       (l) => !['APPROVED', 'REJECTED', 'PARTIALLY_APPROVED'].includes(l.status)
     ).length;
-    const lastLeave = leaves.sort(
-      (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    const lastLeave = empLeaves.sort(
+      (a: any, b: any) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
     )[0];
 
     return (
@@ -145,7 +177,7 @@ const EmployeesPage: React.FC = () => {
               {t('empPage.leaveSummary')}
             </Text>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Tag color="default">{t('empPage.total')}: {leaves.length}</Tag>
+              <Tag color="default">{t('empPage.total')}: {empLeaves.length}</Tag>
               <Tag color="green">{t('statuses.approved')}: {approved}</Tag>
               <Tag color="red">{t('statuses.rejected')}: {rejected}</Tag>
               <Tag color="orange">{t('empPage.pending')}: {pending}</Tag>
@@ -161,12 +193,12 @@ const EmployeesPage: React.FC = () => {
             <Text strong style={{ fontSize: 13, color: '#001529', display: 'block', marginBottom: 6 }}>
               {t('empPage.violationHistory')}
             </Text>
-            {violations.length === 0 ? (
+            {empViolations.length === 0 ? (
               <Tag color="green">✓ {t('empPage.noViolations')}</Tag>
             ) : (
-              violations.map((v) => (
+              empViolations.map((v: any) => (
                 <div key={v.id} style={{ fontSize: 12, color: '#ff4d4f', marginBottom: 4 }}>
-                  • {v.violationType} — {new Date(v.date).toLocaleDateString()}
+                  • {v.violationType ?? v.penaltyType} — {new Date(v.date).toLocaleDateString()}
                 </div>
               ))
             )}
@@ -205,15 +237,15 @@ const EmployeesPage: React.FC = () => {
       title: t('empPage.empNumber'),
       dataIndex: 'employeeNumber',
       key: 'number',
-      sorter: (a: User, b: User) => a.employeeNumber.localeCompare(b.employeeNumber),
+      sorter: (a: User, b: User) => (a.employeeNumber ?? '').localeCompare(b.employeeNumber ?? ''),
       render: (n: string) => <Text style={{ color: '#D4AF37', fontWeight: 600, fontSize: 13 }}>{n}</Text>,
     },
     {
       title: t('empPage.department'),
       key: 'dept',
-      sorter: (a: User, b: User) => a.department.nameEn.localeCompare(b.department.nameEn),
+      sorter: (a: User, b: User) => (a.department?.nameEn ?? '').localeCompare(b.department?.nameEn ?? ''),
       render: (_: unknown, r: User) => (
-        <Text style={{ fontSize: 12 }}>{isAr ? r.department.nameAr : r.department.nameEn}</Text>
+        <Text style={{ fontSize: 12 }}>{isAr ? r.department?.nameAr : r.department?.nameEn}</Text>
       ),
     },
     {
@@ -292,6 +324,8 @@ const EmployeesPage: React.FC = () => {
     },
   ];
 
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+
   return (
     <div className="fade-in" style={{ padding: '0 0 32px' }}>
       {/* Header */}
@@ -326,10 +360,10 @@ const EmployeesPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={12} sm={6}>
-          <StatCard title={t('empPage.totalEmployees')} value={mockUsers.length} accentColor="#1890ff" icon={<TeamOutlined />} />
+          <StatCard title={t('empPage.totalEmployees')} value={employees.length} accentColor="#1890ff" icon={<TeamOutlined />} />
         </Col>
         <Col xs={12} sm={6}>
-          <StatCard title={t('empPage.active')} value={mockUsers.length} accentColor="#52c41a" icon={<UserOutlined />} />
+          <StatCard title={t('empPage.active')} value={employees.length} accentColor="#52c41a" icon={<UserOutlined />} />
         </Col>
         <Col xs={12} sm={6}>
           <StatCard title={t('empPage.onLeave')} value={onLeaveCount} accentColor="#fa8c16" icon={<FileTextOutlined />} />
@@ -362,7 +396,7 @@ const EmployeesPage: React.FC = () => {
               style={{ width: '100%' }}
               allowClear
             >
-              {mockDepartments.map((d) => (
+              {uniqueDepartments.map((d) => (
                 <Option key={d.id} value={d.id}>
                   {isAr ? d.nameAr : d.nameEn}
                 </Option>

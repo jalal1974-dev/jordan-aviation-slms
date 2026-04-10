@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Card, Row, Col, Table, Tag, Button, Statistic,
-  Typography, Space, Progress, Alert, message,
+  Typography, Space, Progress, Alert, message, Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { TeamOutlined } from '@ant-design/icons';
@@ -12,7 +12,6 @@ import {
 } from 'recharts';
 import { doctorsAPI, leavesAPI } from '../../services/api';
 import type { Doctor } from '../../types';
-import { mockDoctors, mockSickLeaves } from '../../services/mockData';
 
 const { Title, Text } = Typography;
 const NAVY = '#0a1628';
@@ -48,12 +47,33 @@ const DoctorsAnalysis: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAr         = i18n.language === 'ar';
 
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      doctorsAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setDoctors(Array.isArray(data) ? data : []);
+      }),
+      leavesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setLeaves(Array.isArray(data) ? data : []);
+      }),
+    ])
+      .catch(() => message.error('Failed to load data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+
   /* ── Enrich doctors with computed stats ── */
-  const enriched: DoctorWithStats[] = mockDoctors.map((d) => {
+  const enriched: DoctorWithStats[] = doctors.map((d) => {
     const flagRate = d.leavesIssued > 0 ? d.leavesFlagged / d.leavesIssued : 0;
-    const leaves   = mockSickLeaves.filter((l) => l.doctor.id === d.id);
-    const topFacility = leaves.length > 0
-      ? (isAr ? leaves[0].facility.nameAr : leaves[0].facility.nameEn)
+    const docLeaves = leaves.filter((l) => l.doctor?.id === d.id);
+    const topFacility = docLeaves.length > 0
+      ? (isAr ? docLeaves[0].facility?.nameAr : docLeaves[0].facility?.nameEn) ?? '—'
       : '—';
     return { ...d, flagRate, topFacility };
   });

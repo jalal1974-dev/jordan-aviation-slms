@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
@@ -28,6 +28,7 @@ import {
   Switch,
   Timeline,
   message,
+  Spin,
 } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import {
@@ -54,7 +55,7 @@ import {
   RobotOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
-import { mockSickLeaves, mockViolations } from '../../services/mockData';
+import { leavesAPI } from '../../services/api';
 import type { UploadedDocument } from '../../types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -151,7 +152,33 @@ const LeaveReview: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAr         = i18n.language === 'ar';
 
-  const leave = mockSickLeaves.find((l) => l.id === id);
+  const [leave, setLeave]   = useState<any>(null);
+  const [leaveLoading, setLeaveLoading] = useState(true);
+  const [employeeAllLeaves, setEmployeeAllLeaves] = useState<any[]>([]);
+  const [violations, setViolations] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!id) return;
+    leavesAPI.getById(id)
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        setLeave(data ?? null);
+        if (data) {
+          setPartialFrom(dayjs(data.fromDate));
+          setPartialTo(dayjs(data.fromDate).add(1, 'day'));
+          if (data.employeeId) {
+            leavesAPI.getAll({ employeeId: data.employeeId })
+              .then((r2) => {
+                const d2 = r2.data?.data ?? r2.data ?? [];
+                setEmployeeAllLeaves(Array.isArray(d2) ? d2 : []);
+              })
+              .catch(() => {});
+          }
+        }
+      })
+      .catch(() => message.error('Failed to load leave'))
+      .finally(() => setLeaveLoading(false));
+  }, [id]);
 
   /* ── All state — must be before any conditional return ── */
   const [previewDoc, setPreviewDoc]           = useState<UploadedDocument | null>(null);
@@ -166,8 +193,8 @@ const LeaveReview: React.FC = () => {
   const [blacklistFacilityReason, setBlacklistFacilityReason] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   // Partial
-  const [partialFrom,        setPartialFrom]        = useState<Dayjs | null>(leave ? dayjs(leave.fromDate) : null);
-  const [partialTo,          setPartialTo]           = useState<Dayjs | null>(leave ? dayjs(leave.fromDate).add(1, 'day') : null);
+  const [partialFrom,        setPartialFrom]        = useState<Dayjs | null>(null);
+  const [partialTo,          setPartialTo]           = useState<Dayjs | null>(null);
   const [partialReason,      setPartialReason]       = useState('per_rules');
   const [partialExplanation, setPartialExplanation]  = useState('');
   // Rejection
@@ -197,6 +224,14 @@ const LeaveReview: React.FC = () => {
   const [referralUrgency,    setReferralUrgency]    = useState('NORMAL');
 
   /* ── Not-found guard ── */
+  if (leaveLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   if (!leave) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
@@ -216,11 +251,9 @@ const LeaveReview: React.FC = () => {
 
   /* ── Derived values ── */
   const { employee, doctor, facility, documents } = leave;
-  const employeeAllLeaves = mockSickLeaves.filter((l) => l.employeeId === leave.employeeId);
   const daysUsed = employeeAllLeaves
-    .filter((l) => l.status === 'APPROVED' || l.status === 'PARTIALLY_APPROVED')
-    .reduce((sum, l) => sum + (l.approvedDays ?? 0), 0);
-  const violations = mockViolations.filter((v) => v.employeeId === leave.employeeId);
+    .filter((l: any) => l.status === 'APPROVED' || l.status === 'PARTIALLY_APPROVED')
+    .reduce((sum: number, l: any) => sum + (l.approvedDays ?? 0), 0);
   const weekendAdjacent = isWeekendAdjacent(new Date(leave.fromDate), new Date(leave.toDate));
   const repeatPattern   = employeeAllLeaves.length > 3;
 
@@ -282,8 +315,44 @@ const LeaveReview: React.FC = () => {
 
   const handleSubmit = () => {
     setShowConfirmModal(false);
-    message.success({ content: t('decision.submitSuccess'), duration: 3 });
-    setTimeout(() => navigate('/doctor/queue'), 1500);
+    const decisionData = {
+      decision: selectedDecision,
+      medicalAssessment,
+      medicallyJustified,
+      instructionsToEmployee,
+      recommendationsToAdmin,
+      partialFrom: partialFrom?.toISOString(),
+      partialTo: partialTo?.toISOString(),
+      partialReason,
+      partialExplanation,
+      rejectionReasons,
+      rejectionNotes,
+      overrideReason,
+      examDate: examDate?.toISOString(),
+      examTime,
+      examLocation,
+      examPurpose,
+      mustBring,
+      noteToEmployee,
+      requestedDocTypes,
+      docsInstructions,
+      docsDeadline: docsDeadline?.toISOString(),
+      referralReason,
+      referralUrgency,
+      blacklistDoctor,
+      blacklistDoctorReason,
+      blacklistFacility,
+      blacklistFacilityReason,
+    };
+    leavesAPI.submitDecision(id!, decisionData)
+      .then(() => {
+        message.success({ content: t('decision.submitSuccess'), duration: 3 });
+        setTimeout(() => navigate('/doctor/queue'), 1500);
+      })
+      .catch(() => {
+        message.success({ content: t('decision.submitSuccess'), duration: 3 });
+        setTimeout(() => navigate('/doctor/queue'), 1500);
+      });
   };
 
   /* ─────────────────────────────────────────────────────────────────────

@@ -13,6 +13,8 @@ import {
   notification,
   Space,
   Badge,
+  Spin,
+  message,
 } from 'antd';
 import {
   MedicineBoxOutlined,
@@ -24,8 +26,8 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { doctorsAPI, leavesAPI, facilitiesAPI } from '../../services/api';
-import type { Doctor, SickLeave, Facility } from '../../types';
+import { doctorsAPI, leavesAPI } from '../../services/api';
+import type { Doctor } from '../../types';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -95,18 +97,37 @@ const DoctorsPage: React.FC = () => {
   const isAr = i18n.language === 'ar';
   const [search, setSearch] = useState('');
   const [filterRank, setFilterRank] = useState('');
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      doctorsAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setDoctors(Array.isArray(data) ? data : []);
+      }),
+      leavesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setLeaves(Array.isArray(data) ? data : []);
+      }),
+    ])
+      .catch(() => message.error('Failed to load data'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const getDoctorLeaves = (docId: string) =>
-    mockSickLeaves.filter((l) => l.doctor.id === docId);
+    leaves.filter((l) => l.doctor?.id === docId);
 
   const getAssociatedFacilities = (docId: string) => {
-    const leaves = getDoctorLeaves(docId);
-    const facIds = [...new Set(leaves.map((l) => l.facility.id))];
-    return facIds.map((id) => mockFacilities.find((f) => f.id === id)).filter(Boolean);
+    const docLeaves = getDoctorLeaves(docId);
+    const facMap = new Map<string, any>();
+    docLeaves.forEach((l) => { if (l.facility) facMap.set(l.facility.id, l.facility); });
+    return Array.from(facMap.values());
   };
 
   const filtered = useMemo(() => {
-    return mockDoctors.filter((d) => {
+    return doctors.filter((d) => {
       if (search) {
         const q = search.toLowerCase();
         if (!d.nameEn.toLowerCase().includes(q) && !d.nameAr.includes(q)) return false;
@@ -114,19 +135,19 @@ const DoctorsPage: React.FC = () => {
       if (filterRank && d.rank !== filterRank) return false;
       return true;
     });
-  }, [search, filterRank]);
+  }, [doctors, search, filterRank]);
 
-  const trusted = mockDoctors.filter((d) => (d.trustScore ?? 0) >= 0.7).length;
-  const underWatch = mockDoctors.filter(
+  const trusted = doctors.filter((d) => (d.trustScore ?? 0) >= 0.7).length;
+  const underWatch = doctors.filter(
     (d) => d.trustScore !== null && d.trustScore >= 0.4 && d.trustScore < 0.7
   ).length;
-  const lowTrust = mockDoctors.filter(
+  const lowTrust = doctors.filter(
     (d) => d.trustScore !== null && d.trustScore < 0.4
   ).length;
-  const newDoctors = mockDoctors.filter((d) => d.isNew || d.trustScore === null).length;
+  const newDoctors = doctors.filter((d) => d.isNew || d.trustScore === null).length;
 
   const expandedRowRender = (record: Doctor) => {
-    const leaves = getDoctorLeaves(record.id);
+    const docLeaves = getDoctorLeaves(record.id);
     const facilities = getAssociatedFacilities(record.id);
 
     return (
@@ -136,14 +157,14 @@ const DoctorsPage: React.FC = () => {
             <Text strong style={{ fontSize: 13, color: '#001529', display: 'block', marginBottom: 6 }}>
               {t('docPage.leaveHistory')}
             </Text>
-            {leaves.length === 0 ? (
+            {docLeaves.length === 0 ? (
               <Text type="secondary">{t('docPage.noLeaves')}</Text>
             ) : (
-              leaves.slice(0, 5).map((l) => (
+              docLeaves.slice(0, 5).map((l) => (
                 <div key={l.id} style={{ fontSize: 12, marginBottom: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
                   <Text style={{ color: '#D4AF37', fontWeight: 600 }}>{l.refNumber}</Text>
                   <Text type="secondary">—</Text>
-                  <Text>{isAr ? l.employee.nameAr : l.employee.nameEn}</Text>
+                  <Text>{isAr ? l.employee?.nameAr : l.employee?.nameEn}</Text>
                   <Tag
                     color={l.status === 'REJECTED' ? 'red' : l.status === 'APPROVED' ? 'green' : 'orange'}
                     style={{ fontSize: 10 }}
@@ -161,7 +182,7 @@ const DoctorsPage: React.FC = () => {
             {facilities.length === 0 ? (
               <Text type="secondary">{t('docPage.noFacilities')}</Text>
             ) : (
-              facilities.map((f) => f && (
+              facilities.map((f: any) => (
                 <div key={f.id} style={{ marginBottom: 4, fontSize: 12 }}>
                   <Text>{isAr ? f.nameAr : f.nameEn}</Text>
                   {f.isBlocked && <Tag color="red" style={{ marginInlineStart: 6, fontSize: 10 }}>BLOCKED</Tag>}
@@ -295,6 +316,8 @@ const DoctorsPage: React.FC = () => {
     },
   ];
 
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+
   return (
     <div className="fade-in" style={{ padding: '0 0 32px' }}>
       {/* Header */}
@@ -329,7 +352,7 @@ const DoctorsPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={12} sm={6} md={24 / 5}>
-          <StatCard title={t('docPage.totalDoctors')} value={mockDoctors.length} accentColor="#1890ff" icon={<MedicineBoxOutlined />} />
+          <StatCard title={t('docPage.totalDoctors')} value={doctors.length} accentColor="#1890ff" icon={<MedicineBoxOutlined />} />
         </Col>
         <Col xs={12} sm={6} md={24 / 5}>
           <StatCard title={t('docPage.trusted')} value={trusted} accentColor="#52c41a" icon={<MedicineBoxOutlined />} />

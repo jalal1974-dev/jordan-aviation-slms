@@ -11,7 +11,7 @@ A bilingual (Arabic/English) web application for managing employee sick leaves a
 - **Routing**: React Router DOM v7
 - **Internationalization**: i18next (English + Arabic, defaults to Arabic)
 - **Charts**: Recharts
-- **Backend Integration**: Supabase (prepared, currently uses mock data)
+- **Backend Integration**: Real REST API at `https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api` (all pages fully migrated from mock data)
 
 ## Project Structure
 ```
@@ -24,7 +24,8 @@ src/
     ar.json                      # Arabic translations
     config.ts                    # i18next init, RTL/LTR on language change
   services/
-    mockData.ts                  # Mock users, leaves, doctors, facilities
+    mockData.ts                  # Mock data (retained but no longer imported by UI components)
+    api.ts                       # Axios-based API clients for all endpoints (real backend)
   store/
     authStore.ts                 # Auth (login/logout/register) with Zustand persist
     leaveStore.ts                # Leave management store

@@ -105,7 +105,7 @@ const DecisionsPage: React.FC = () => {
         <div>
           <Text strong style={{ fontSize: 13 }}>{isAr ? r.employee.nameAr : r.employee.nameEn}</Text>
           <br />
-          <Text type="secondary" style={{ fontSize: 11 }}>{isAr ? r.employee.department.nameAr : r.employee.department.nameEn}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>{isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}</Text>
         </div>
       ),
     },

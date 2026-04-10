@@ -196,7 +196,7 @@ const EmployeeDashboard: React.FC = () => {
       title: t('submitLeave.doctorName'),
       key: 'doctor',
       render: (_: unknown, record: SickLeave) =>
-        isAr ? record.doctor.nameAr : record.doctor.nameEn,
+        isAr ? record.doctor?.nameAr : record.doctor?.nameEn,
     },
     {
       title: t('common.status'),

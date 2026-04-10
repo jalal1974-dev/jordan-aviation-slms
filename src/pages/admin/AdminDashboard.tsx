@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Row,
   Col,
@@ -14,6 +14,8 @@ import {
   Divider,
   notification,
   Statistic,
+  Spin,
+  message,
 } from 'antd';
 import {
   TeamOutlined,
@@ -41,7 +43,7 @@ import {
   Legend,
 } from 'recharts';
 import type { SickLeave } from '../../types';
-import { mockSickLeaves } from '../../services/mockData';
+import { leavesAPI } from '../../services/api';
 import SendResultModal from '../../components/admin/SendResultModal';
 
 const { Text } = Typography;
@@ -142,6 +144,18 @@ const AdminDashboard: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<SickLeave | null>(null);
   const [sentLeaves, setSentLeaves] = useState<Set<string>>(new Set());
+  const [leaves, setLeaves] = useState<SickLeave[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    leavesAPI.getAll()
+      .then((res) => {
+        const data = res.data?.data ?? res.data ?? [];
+        setLeaves(Array.isArray(data) ? data : []);
+      })
+      .catch(() => message.error('Failed to load leaves'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const today = new Date().toLocaleDateString(isAr ? 'ar-JO' : 'en-GB', {
     weekday: 'long',
@@ -150,7 +164,7 @@ const AdminDashboard: React.FC = () => {
     day: 'numeric',
   });
 
-  const pendingResultLeaves = mockSickLeaves.filter(
+  const pendingResultLeaves = leaves.filter(
     (l) =>
       (l.companyDoctorDecision === 'APPROVED' ||
         l.companyDoctorDecision === 'PARTIALLY_APPROVED' ||
@@ -293,7 +307,9 @@ const AdminDashboard: React.FC = () => {
           <span>{t('adminDash.pendingResultEmails')}</span>
         </Badge>
       ),
-      children: (
+      children: loading ? (
+        <Spin style={{ display: 'flex', justifyContent: 'center', padding: 40 }} />
+      ) : (
         <Table
           dataSource={pendingResultLeaves}
           columns={resultEmailColumns}
@@ -409,7 +425,7 @@ const AdminDashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             title={t('adminDash.leavesThisMonth')}
-            value={<Statistic value={10} valueStyle={{ color: '#52c41a', fontWeight: 800, fontSize: 32 }} />}
+            value={<Statistic value={leaves.length} valueStyle={{ color: '#52c41a', fontWeight: 800, fontSize: 32 }} />}
             subtitle={t('adminDash.submitted')}
             icon={<FileTextOutlined />}
             accentColor="#52c41a"
@@ -484,30 +500,30 @@ const AdminDashboard: React.FC = () => {
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={{ fontSize: 13 }}>{t('statuses.approved')}</Text>
-                <Text strong style={{ color: '#52c41a' }}>45</Text>
+                <Text strong style={{ color: '#52c41a' }}>{leaves.filter(l => l.status === 'APPROVED').length}</Text>
               </div>
-              <Progress percent={60} showInfo={false} strokeColor="#52c41a" size="small" />
+              <Progress percent={leaves.length ? Math.round(leaves.filter(l => l.status === 'APPROVED').length / leaves.length * 100) : 0} showInfo={false} strokeColor="#52c41a" size="small" />
             </div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={{ fontSize: 13 }}>{t('statuses.partiallyApproved')}</Text>
-                <Text strong style={{ color: '#fa8c16' }}>8</Text>
+                <Text strong style={{ color: '#fa8c16' }}>{leaves.filter(l => l.status === 'PARTIALLY_APPROVED').length}</Text>
               </div>
-              <Progress percent={10} showInfo={false} strokeColor="#fa8c16" size="small" />
+              <Progress percent={leaves.length ? Math.round(leaves.filter(l => l.status === 'PARTIALLY_APPROVED').length / leaves.length * 100) : 0} showInfo={false} strokeColor="#fa8c16" size="small" />
             </div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={{ fontSize: 13 }}>{t('statuses.rejected')}</Text>
-                <Text strong style={{ color: '#ff4d4f' }}>12</Text>
+                <Text strong style={{ color: '#ff4d4f' }}>{leaves.filter(l => l.status === 'REJECTED').length}</Text>
               </div>
-              <Progress percent={16} showInfo={false} strokeColor="#ff4d4f" size="small" />
+              <Progress percent={leaves.length ? Math.round(leaves.filter(l => l.status === 'REJECTED').length / leaves.length * 100) : 0} showInfo={false} strokeColor="#ff4d4f" size="small" />
             </div>
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={{ fontSize: 13 }}>{t('adminDash.pending')}</Text>
-                <Text strong style={{ color: '#1890ff' }}>10</Text>
+                <Text strong style={{ color: '#1890ff' }}>{leaves.filter(l => !['APPROVED','PARTIALLY_APPROVED','REJECTED'].includes(l.status)).length}</Text>
               </div>
-              <Progress percent={14} showInfo={false} strokeColor="#1890ff" size="small" />
+              <Progress percent={leaves.length ? Math.round(leaves.filter(l => !['APPROVED','PARTIALLY_APPROVED','REJECTED'].includes(l.status)).length / leaves.length * 100) : 0} showInfo={false} strokeColor="#1890ff" size="small" />
             </div>
 
             <Divider style={{ margin: '12px 0' }} />

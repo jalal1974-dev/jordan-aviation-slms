@@ -12,6 +12,8 @@ import {
   Space,
   Tooltip,
   notification,
+  Spin,
+  message,
 } from 'antd';
 import {
   FileTextOutlined,
@@ -23,8 +25,8 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { leavesAPI, employeesAPI, doctorsAPI, facilitiesAPI } from '../../services/api';
-import type { SickLeave, LeaveStatus, User, Doctor, Facility } from '../../types';
+import { leavesAPI } from '../../services/api';
+import type { SickLeave, LeaveStatus } from '../../types';
 import SendResultModal from '../../components/admin/SendResultModal';
 
 const { Text, Title } = Typography;
@@ -63,32 +65,68 @@ const AllLeaves: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<SickLeave | null>(null);
   const [sentLeaves, setSentLeaves] = useState<Set<string>>(new Set());
+  const [leaves, setLeaves] = useState<SickLeave[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    leavesAPI.getAll()
+      .then((res) => {
+        const data = res.data?.data ?? res.data ?? [];
+        setLeaves(Array.isArray(data) ? data : []);
+      })
+      .catch(() => message.error('Failed to load leaves'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const statuses: LeaveStatus[] = [
     'SUBMITTED', 'PROCESSING', 'UNDER_REVIEW', 'DOCS_REQUESTED',
     'EXAMINATION_REQUESTED', 'APPROVED', 'PARTIALLY_APPROVED', 'REJECTED', 'PENDING_COMMITTEE',
   ];
 
+  const uniqueEmployees = useMemo(() => {
+    const map = new Map<string, SickLeave['employee']>();
+    leaves.forEach((l) => { if (l.employee) map.set(l.employeeId, l.employee); });
+    return Array.from(map.values());
+  }, [leaves]);
+
+  const uniqueDepartments = useMemo(() => {
+    const map = new Map<string, SickLeave['employee']['department']>();
+    leaves.forEach((l) => { if (l.employee?.department) map.set(l.employee.department.id, l.employee.department); });
+    return Array.from(map.values());
+  }, [leaves]);
+
+  const uniqueDoctors = useMemo(() => {
+    const map = new Map<string, SickLeave['doctor']>();
+    leaves.forEach((l) => { if (l.doctor) map.set(l.doctor.id, l.doctor); });
+    return Array.from(map.values());
+  }, [leaves]);
+
+  const uniqueFacilities = useMemo(() => {
+    const map = new Map<string, SickLeave['facility']>();
+    leaves.forEach((l) => { if (l.facility) map.set(l.facility.id, l.facility); });
+    return Array.from(map.values());
+  }, [leaves]);
+
   const filtered = useMemo(() => {
-    return mockSickLeaves.filter((l) => {
+    return leaves.filter((l) => {
       if (search) {
         const q = search.toLowerCase();
-        const empName = isAr ? l.employee.nameAr : l.employee.nameEn;
+        const empName = isAr ? l.employee?.nameAr : l.employee?.nameEn;
         if (
           !l.refNumber.toLowerCase().includes(q) &&
-          !empName.toLowerCase().includes(q) &&
+          !(empName ?? '').toLowerCase().includes(q) &&
           !l.diagnosis.toLowerCase().includes(q)
         )
           return false;
       }
       if (filterStatus.length > 0 && !filterStatus.includes(l.status)) return false;
-      if (filterDept && l.employee.department.id !== filterDept) return false;
-      if (filterDoctor && l.doctor.id !== filterDoctor) return false;
-      if (filterFacility && l.facility.id !== filterFacility) return false;
+      if (filterDept && l.employee?.department?.id !== filterDept) return false;
+      if (filterDoctor && l.doctor?.id !== filterDoctor) return false;
+      if (filterFacility && l.facility?.id !== filterFacility) return false;
       if (filterEmployee && l.employeeId !== filterEmployee) return false;
       return true;
     });
-  }, [search, filterStatus, filterDept, filterDoctor, filterFacility, filterEmployee, isAr]);
+  }, [leaves, search, filterStatus, filterDept, filterDoctor, filterFacility, filterEmployee, isAr]);
 
   const clearFilters = () => {
     setSearch('');
@@ -118,10 +156,10 @@ const AllLeaves: React.FC = () => {
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const s of statuses) {
-      counts[s] = mockSickLeaves.filter((l) => l.status === s).length;
+      counts[s] = leaves.filter((l) => l.status === s).length;
     }
     return counts;
-  }, []);
+  }, [leaves]);
 
   const columns = [
     {
@@ -144,7 +182,7 @@ const AllLeaves: React.FC = () => {
           </Text>
           <br />
           <Text type="secondary" style={{ fontSize: 11 }}>
-            {isAr ? r.employee.department.nameAr : r.employee.department.nameEn}
+            {isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}
           </Text>
         </div>
       ),
@@ -278,6 +316,8 @@ const AllLeaves: React.FC = () => {
     },
   ];
 
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+
   return (
     <div className="fade-in" style={{ padding: '0 0 32px' }}>
       {/* Header */}
@@ -308,7 +348,7 @@ const AllLeaves: React.FC = () => {
       {/* Status Pills */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
         <Tag style={{ padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
-          {t('common.total')}: {mockSickLeaves.length}
+          {t('common.total')}: {leaves.length}
         </Tag>
         {statuses.map((s) => (
           <Tag
@@ -367,13 +407,11 @@ const AllLeaves: React.FC = () => {
                 String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
               }
             >
-              {mockUsers
-                .filter((u) => u.role === 'EMPLOYEE')
-                .map((u) => (
-                  <Option key={u.id} value={u.id}>
-                    {isAr ? u.nameAr : u.nameEn}
-                  </Option>
-                ))}
+              {uniqueEmployees.map((u) => (
+                <Option key={u.id} value={u.id}>
+                  {isAr ? u.nameAr : u.nameEn}
+                </Option>
+              ))}
             </Select>
           </Col>
           <Col xs={24} sm={12} md={8} lg={4}>
@@ -384,7 +422,7 @@ const AllLeaves: React.FC = () => {
               style={{ width: '100%' }}
               allowClear
             >
-              {mockDepartments.map((d) => (
+              {uniqueDepartments.map((d) => (
                 <Option key={d.id} value={d.id}>
                   {isAr ? d.nameAr : d.nameEn}
                 </Option>
@@ -399,7 +437,7 @@ const AllLeaves: React.FC = () => {
               style={{ width: '100%' }}
               allowClear
             >
-              {mockDoctors.map((d) => (
+              {uniqueDoctors.map((d) => (
                 <Option key={d.id} value={d.id}>
                   {isAr ? d.nameAr : d.nameEn}
                 </Option>
@@ -414,7 +452,7 @@ const AllLeaves: React.FC = () => {
               style={{ width: '100%' }}
               allowClear
             >
-              {mockFacilities.map((f) => (
+              {uniqueFacilities.map((f) => (
                 <Option key={f.id} value={f.id}>
                   {isAr ? f.nameAr : f.nameEn}
                 </Option>

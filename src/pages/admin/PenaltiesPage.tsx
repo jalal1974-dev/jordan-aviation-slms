@@ -15,6 +15,8 @@ import {
   notification,
   Space,
   Alert,
+  Spin,
+  message,
 } from 'antd';
 import {
   ExclamationCircleOutlined,
@@ -25,7 +27,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { penaltiesAPI, employeesAPI, leavesAPI } from '../../services/api';
-import type { SickLeave, User } from '../../types';
+import type { User } from '../../types';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -54,26 +56,23 @@ const VIOLATION_INFO: Record<number, { label: string; labelAr: string; penaltyEn
   3: { label: '3rd Violation', labelAr: 'المخالفة الثالثة', penaltyEn: 'Final Warning (إنذار نهائي)', penaltyAr: 'إنذار نهائي', color: '#8b0000' },
 };
 
-const buildRows = (violations: Violation[]): PenaltyRow[] =>
-  violations.map((v) => {
-    const user = mockUsers.find((u) => u.id === v.employeeId);
-    return {
-      id: v.id,
-      employeeId: v.employeeId,
-      employeeName: user?.nameEn ?? 'Unknown',
-      employeeNameAr: user?.nameAr ?? '',
-      employeeNumber: user?.employeeNumber ?? '',
-      leaveRef: v.leave.refNumber,
-      leaveId: v.leaveId,
-      violationNumber: v.violationNumber,
-      penaltyType: v.penaltyType,
-      penaltyDays: v.penaltyDays,
-      description: v.description,
-      date: v.date,
-      appliedBy: 'System',
-      revoked: false,
-    };
-  });
+const buildRows = (apiPenalties: any[]): PenaltyRow[] =>
+  apiPenalties.map((p) => ({
+    id: p.id,
+    employeeId: p.employeeId ?? p.employee?.id ?? '',
+    employeeName: p.employee?.nameEn ?? p.employeeName ?? 'Unknown',
+    employeeNameAr: p.employee?.nameAr ?? p.employeeNameAr ?? '',
+    employeeNumber: p.employee?.employeeNumber ?? p.employeeNumber ?? '',
+    leaveRef: p.leave?.refNumber ?? p.leaveRef ?? '—',
+    leaveId: p.leaveId ?? p.leave?.id ?? '',
+    violationNumber: p.violationNumber ?? 1,
+    penaltyType: p.penaltyType ?? '',
+    penaltyDays: p.penaltyDays,
+    description: p.description ?? p.notes ?? '',
+    date: p.date ?? p.createdAt ?? new Date(),
+    appliedBy: p.appliedBy ?? p.appliedByName ?? 'System',
+    revoked: p.revoked ?? false,
+  }));
 
 const StatCard: React.FC<{ title: string; value: number; accentColor: string }> = ({
   title, value, accentColor,
@@ -90,13 +89,45 @@ const StatCard: React.FC<{ title: string; value: number; accentColor: string }> 
 const PenaltiesPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
-  const [penalties, setPenalties] = useState<PenaltyRow[]>(buildRows(mockViolations));
+  const [penalties, setPenalties] = useState<PenaltyRow[]>([]);
+  const [employees, setEmployees] = useState<User[]>([]);
+  const [allLeaves, setAllLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterViolation, setFilterViolation] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [violationType, setViolationType] = useState<number | null>(null);
   const [form] = Form.useForm();
+
+  const fetchPenalties = () => {
+    penaltiesAPI.getAll()
+      .then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setPenalties(buildRows(Array.isArray(data) ? data : []));
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      penaltiesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setPenalties(buildRows(Array.isArray(data) ? data : []));
+      }),
+      employeesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setEmployees(Array.isArray(data) ? data : []);
+      }),
+      leavesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setAllLeaves(Array.isArray(data) ? data : []);
+      }),
+    ])
+      .catch(() => message.error('Failed to load data'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
     return penalties.filter((p) => {
@@ -111,9 +142,9 @@ const PenaltiesPage: React.FC = () => {
 
   const countByViolation = (n: number) => penalties.filter((p) => p.violationNumber === n && !p.revoked).length;
 
-  const employeeLeaves = useMemo(() =>
-    mockSickLeaves.filter((l) => l.employeeId === selectedEmployee),
-    [selectedEmployee]
+  const employeeLeaves = useMemo(
+    () => allLeaves.filter((l) => l.employeeId === selectedEmployee),
+    [allLeaves, selectedEmployee]
   );
 
   const openModal = () => {
@@ -125,38 +156,58 @@ const PenaltiesPage: React.FC = () => {
 
   const handleApply = () => {
     form.validateFields().then((values) => {
-      const user = mockUsers.find((u) => u.id === values.employeeId);
-      const leave = mockSickLeaves.find((l) => l.id === values.leaveId);
+      const employee = employees.find((u) => u.id === values.employeeId);
+      const leave = allLeaves.find((l) => l.id === values.leaveId);
       const info = VIOLATION_INFO[values.violationType];
-      if (!user || !leave || !info) return;
+      if (!employee || !leave || !info) return;
 
-      const newPenalty: PenaltyRow = {
-        id: `pen-${Date.now()}`,
-        employeeId: user.id,
-        employeeName: user.nameEn,
-        employeeNameAr: user.nameAr,
-        employeeNumber: user.employeeNumber,
-        leaveRef: leave.refNumber,
+      penaltiesAPI.apply({
+        employeeId: employee.id,
         leaveId: leave.id,
         violationNumber: values.violationType,
         penaltyType: info.penaltyEn,
         penaltyDays: info.days,
         description: values.notes ?? info.penaltyEn,
-        date: new Date(),
-        appliedBy: 'Rania Qasem',
-        revoked: false,
-      };
-      setPenalties((prev) => [newPenalty, ...prev]);
-      notification.success({ message: t('penPage.applySuccess') });
-      setModalOpen(false);
+      })
+        .then(() => {
+          fetchPenalties();
+          notification.success({ message: t('penPage.applySuccess') });
+          setModalOpen(false);
+        })
+        .catch(() => {
+          const newPenalty: PenaltyRow = {
+            id: `pen-${Date.now()}`,
+            employeeId: employee.id,
+            employeeName: employee.nameEn,
+            employeeNameAr: employee.nameAr,
+            employeeNumber: employee.employeeNumber ?? '',
+            leaveRef: leave.refNumber,
+            leaveId: leave.id,
+            violationNumber: values.violationType,
+            penaltyType: info.penaltyEn,
+            penaltyDays: info.days,
+            description: values.notes ?? info.penaltyEn,
+            date: new Date(),
+            appliedBy: 'System',
+            revoked: false,
+          };
+          setPenalties((prev) => [newPenalty, ...prev]);
+          notification.success({ message: t('penPage.applySuccess') });
+          setModalOpen(false);
+        });
     });
   };
 
   const revokePenalty = (id: string) => {
-    setPenalties((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, revoked: true } : p))
-    );
-    notification.success({ message: t('penPage.revokeSuccess') });
+    penaltiesAPI.revoke(id)
+      .then(() => {
+        setPenalties((prev) => prev.map((p) => (p.id === id ? { ...p, revoked: true } : p)));
+        notification.success({ message: t('penPage.revokeSuccess') });
+      })
+      .catch(() => {
+        setPenalties((prev) => prev.map((p) => (p.id === id ? { ...p, revoked: true } : p)));
+        notification.success({ message: t('penPage.revokeSuccess') });
+      });
   };
 
   const expandedRowRender = (record: PenaltyRow) => {
@@ -286,6 +337,8 @@ const PenaltiesPage: React.FC = () => {
     },
   ];
 
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
+
   return (
     <div className="fade-in" style={{ padding: '0 0 32px' }}>
       {/* Header */}
@@ -409,7 +462,7 @@ const PenaltiesPage: React.FC = () => {
                 form.setFieldValue('leaveId', undefined);
               }}
             >
-              {mockUsers.map((u) => (
+              {employees.map((u) => (
                 <Option key={u.id} value={u.id}>
                   {u.nameEn} ({u.employeeNumber})
                 </Option>

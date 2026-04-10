@@ -172,7 +172,7 @@ const DoctorDashboard: React.FC = () => {
           <Text strong>{isAr ? r.employee.nameAr : r.employee.nameEn}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {isAr ? r.employee.department.nameAr : r.employee.department.nameEn}
+            {isAr ? r.employee.department?.nameAr : r.employee.department?.nameEn}
           </Text>
         </div>
       ),

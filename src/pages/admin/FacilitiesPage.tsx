@@ -13,6 +13,8 @@ import {
   Tooltip,
   notification,
   Space,
+  Spin,
+  message,
 } from 'antd';
 import {
   BankOutlined,
@@ -25,7 +27,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { facilitiesAPI, leavesAPI } from '../../services/api';
-import type { Facility, SickLeave } from '../../types';
+import type { Facility } from '../../types';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -94,9 +96,27 @@ const FacilitiesPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [blockedList, setBlockedList] = useState<Set<string>>(
-    new Set(mockFacilities.filter((f) => f.isBlocked).map((f) => f.id))
-  );
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = () => {
+    setLoading(true);
+    Promise.all([
+      facilitiesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setFacilities(Array.isArray(data) ? data : []);
+      }),
+      leavesAPI.getAll().then((r) => {
+        const data = r.data?.data ?? r.data ?? [];
+        setLeaves(Array.isArray(data) ? data : []);
+      }),
+    ])
+      .catch(() => message.error('Failed to load facilities'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const facilityTypes = [
     'GOVERNMENT_HOSPITAL', 'PRIVATE_HOSPITAL', 'UNIVERSITY_HOSPITAL',
@@ -120,43 +140,43 @@ const FacilitiesPage: React.FC = () => {
   };
 
   const getFacilityLeaves = (facId: string) =>
-    mockSickLeaves.filter((l) => l.facility.id === facId);
+    leaves.filter((l) => l.facility?.id === facId);
 
   const filtered = useMemo(() => {
-    return mockFacilities.filter((f) => {
-      const isBlocked = blockedList.has(f.id);
+    return facilities.filter((f) => {
       if (search) {
         const q = search.toLowerCase();
         if (!f.nameEn.toLowerCase().includes(q) && !f.nameAr.includes(q)) return false;
       }
       if (filterType && f.type !== filterType) return false;
-      if (filterStatus === 'blocked' && !isBlocked) return false;
-      if (filterStatus === 'active' && isBlocked) return false;
+      if (filterStatus === 'blocked' && !f.isBlocked) return false;
+      if (filterStatus === 'active' && f.isBlocked) return false;
       return true;
     });
-  }, [search, filterType, filterStatus, blockedList]);
+  }, [facilities, search, filterType, filterStatus]);
 
-  const trusted = mockFacilities.filter((f) => (f.trustScore ?? 0) >= 0.7).length;
-  const underWatch = mockFacilities.filter(
+  const trusted = facilities.filter((f) => (f.trustScore ?? 0) >= 0.7).length;
+  const underWatch = facilities.filter(
     (f) => f.trustScore !== null && f.trustScore >= 0.4 && f.trustScore < 0.7
   ).length;
+  const blockedCount = facilities.filter((f) => f.isBlocked).length;
 
-  const toggleBlock = (facility: Facility) => {
-    const isBlocked = blockedList.has(facility.id);
-    setBlockedList((prev) => {
-      const next = new Set(prev);
-      if (isBlocked) next.delete(facility.id);
-      else next.add(facility.id);
-      return next;
-    });
-    notification.success({
-      message: isBlocked ? t('facPage.unblockSuccess') : t('facPage.blockSuccess'),
-      description: `${isAr ? facility.nameAr : facility.nameEn}`,
-    });
+  const toggleBlock = async (facility: Facility) => {
+    const isBlocked = facility.isBlocked;
+    try {
+      await facilitiesAPI.toggleBlock(facility.id, { isBlocked: !isBlocked, blockReason: '' });
+      notification.success({
+        message: isBlocked ? t('facPage.unblockSuccess') : t('facPage.blockSuccess'),
+        description: `${isAr ? facility.nameAr : facility.nameEn}`,
+      });
+      fetchData();
+    } catch {
+      message.error('Failed to update facility status');
+    }
   };
 
   const expandedRowRender = (record: Facility) => {
-    const leaves = getFacilityLeaves(record.id);
+    const facLeaves = getFacilityLeaves(record.id);
     return (
       <div style={{ padding: '8px 24px', background: '#fafafa', borderRadius: 8 }}>
         <Row gutter={[24, 12]}>
@@ -164,14 +184,14 @@ const FacilitiesPage: React.FC = () => {
             <Text strong style={{ fontSize: 13, color: '#001529', display: 'block', marginBottom: 6 }}>
               {t('facPage.recentLeaves')}
             </Text>
-            {leaves.length === 0 ? (
+            {facLeaves.length === 0 ? (
               <Text type="secondary">{t('facPage.noLeaves')}</Text>
             ) : (
-              leaves.slice(0, 5).map((l) => (
+              facLeaves.slice(0, 5).map((l) => (
                 <div key={l.id} style={{ fontSize: 12, marginBottom: 4, display: 'flex', gap: 8 }}>
                   <Text style={{ color: '#D4AF37', fontWeight: 600 }}>{l.refNumber}</Text>
                   <Text type="secondary">—</Text>
-                  <Text>{isAr ? l.employee.nameAr : l.employee.nameEn}</Text>
+                  <Text>{isAr ? l.employee?.nameAr : l.employee?.nameEn}</Text>
                   <Tag color={l.status === 'REJECTED' ? 'red' : l.status === 'APPROVED' ? 'green' : 'orange'} style={{ fontSize: 10 }}>
                     {l.status}
                   </Tag>
@@ -184,8 +204,8 @@ const FacilitiesPage: React.FC = () => {
               {t('facPage.facilityStats')}
             </Text>
             <div style={{ fontSize: 13 }}>
-              <div>{t('facPage.totalLeaves')}: <Text strong>{leaves.length}</Text></div>
-              <div>{t('facPage.flaggedLeaves')}: <Text strong style={{ color: '#ff4d4f' }}>{record.leavesFromFacility > 0 ? Math.round((record.leavesFromFacility - leaves.length) / 2) : 0}</Text></div>
+              <div>{t('facPage.totalLeaves')}: <Text strong>{facLeaves.length}</Text></div>
+              <div>{t('facPage.flaggedLeaves')}: <Text strong style={{ color: '#ff4d4f' }}>{facLeaves.filter((l) => (l.aiAnalysis?.ruleViolations?.length ?? 0) > 0).length}</Text></div>
               <div>{t('facPage.trustScore')}: <Text strong style={{ color: getTrustColor(record.trustScore) }}>{record.trustScore?.toFixed(2) ?? 'N/A'}</Text></div>
             </div>
           </Col>
@@ -199,22 +219,19 @@ const FacilitiesPage: React.FC = () => {
       title: t('facPage.facility'),
       key: 'name',
       sorter: (a: Facility, b: Facility) => a.nameEn.localeCompare(b.nameEn),
-      render: (_: unknown, r: Facility) => {
-        const isBlocked = blockedList.has(r.id);
-        return (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {isBlocked && <span style={{ fontSize: 13 }}>🚫</span>}
-              <Text strong style={{ fontSize: 13, color: isBlocked ? '#ff4d4f' : undefined }}>
-                {isAr ? r.nameAr : r.nameEn}
-              </Text>
-            </div>
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {isAr ? r.nameEn : r.nameAr}
+      render: (_: unknown, r: Facility) => (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {r.isBlocked && <span style={{ fontSize: 13 }}>🚫</span>}
+            <Text strong style={{ fontSize: 13, color: r.isBlocked ? '#ff4d4f' : undefined }}>
+              {isAr ? r.nameAr : r.nameEn}
             </Text>
           </div>
-        );
-      },
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {isAr ? r.nameEn : r.nameAr}
+          </Text>
+        </div>
+      ),
     },
     {
       title: t('facPage.type'),
@@ -275,42 +292,39 @@ const FacilitiesPage: React.FC = () => {
     {
       title: t('facPage.status'),
       key: 'status',
-      render: (_: unknown, r: Facility) => {
-        const isBlocked = blockedList.has(r.id);
-        return isBlocked ? (
+      render: (_: unknown, r: Facility) =>
+        r.isBlocked ? (
           <Tag color="red">🚫 {t('facPage.blocked')}</Tag>
         ) : (
           <Tag color="green">{t('facPage.active')}</Tag>
-        );
-      },
+        ),
     },
     {
       title: t('common.actions'),
       key: 'actions',
       fixed: 'right' as const,
-      render: (_: unknown, r: Facility) => {
-        const isBlocked = blockedList.has(r.id);
-        return (
-          <Space size={4}>
-            <Button size="small" icon={<EyeOutlined />}>
-              {t('facPage.viewDetails')}
+      render: (_: unknown, r: Facility) => (
+        <Space size={4}>
+          <Button size="small" icon={<EyeOutlined />}>
+            {t('facPage.viewDetails')}
+          </Button>
+          <Tooltip title={r.isBlocked ? t('facPage.unblock') : t('facPage.block')}>
+            <Button
+              size="small"
+              danger={!r.isBlocked}
+              icon={r.isBlocked ? <CheckCircleOutlined /> : <StopOutlined />}
+              onClick={() => toggleBlock(r)}
+              style={r.isBlocked ? { color: '#52c41a', borderColor: '#52c41a' } : {}}
+            >
+              {r.isBlocked ? t('facPage.unblock') : t('facPage.block')}
             </Button>
-            <Tooltip title={isBlocked ? t('facPage.unblock') : t('facPage.block')}>
-              <Button
-                size="small"
-                danger={!isBlocked}
-                icon={isBlocked ? <CheckCircleOutlined /> : <StopOutlined />}
-                onClick={() => toggleBlock(r)}
-                style={isBlocked ? { color: '#52c41a', borderColor: '#52c41a' } : {}}
-              >
-                {isBlocked ? t('facPage.unblock') : t('facPage.block')}
-              </Button>
-            </Tooltip>
-          </Space>
-        );
-      },
+          </Tooltip>
+        </Space>
+      ),
     },
   ];
+
+  if (loading) return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />;
 
   return (
     <div className="fade-in" style={{ padding: '0 0 32px' }}>
@@ -346,7 +360,7 @@ const FacilitiesPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={12} sm={6}>
-          <StatCard title={t('facPage.totalFacilities')} value={mockFacilities.length} accentColor="#1890ff" icon={<BankOutlined />} />
+          <StatCard title={t('facPage.totalFacilities')} value={facilities.length} accentColor="#1890ff" icon={<BankOutlined />} />
         </Col>
         <Col xs={12} sm={6}>
           <StatCard title={t('facPage.trusted')} value={trusted} accentColor="#52c41a" icon={<CheckCircleOutlined />} />
@@ -355,7 +369,7 @@ const FacilitiesPage: React.FC = () => {
           <StatCard title={t('facPage.underWatch')} value={underWatch} accentColor="#fa8c16" icon={<EyeOutlined />} />
         </Col>
         <Col xs={12} sm={6}>
-          <StatCard title={t('facPage.blockedCount')} value={blockedList.size} accentColor="#ff4d4f" icon={<StopOutlined />} />
+          <StatCard title={t('facPage.blockedCount')} value={blockedCount} accentColor="#ff4d4f" icon={<StopOutlined />} />
         </Col>
       </Row>
 
@@ -421,7 +435,7 @@ const FacilitiesPage: React.FC = () => {
           scroll={{ x: 1000 }}
           size="small"
           rowClassName={(record) => {
-            if (blockedList.has(record.id)) return 'row-blocked';
+            if (record.isBlocked) return 'row-blocked';
             if (record.trustScore !== null && record.trustScore < 0.4) return 'row-warning';
             return '';
           }}
