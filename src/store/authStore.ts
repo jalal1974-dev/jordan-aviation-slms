@@ -32,6 +32,7 @@ interface AuthState {
   logout: () => void;
   checkAuth: () => Promise<void>;
   clearError: () => void;
+  register: (data: { email: string; nameEn: string; nameAr: string }) => Promise<void>;
 }
 
 const normalizeUser = (raw: Record<string, unknown>): AuthUser => ({
@@ -100,4 +101,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  register: async (_data: { email: string; nameEn: string; nameAr: string }) => {
+    // Registration is handled server-side; this is a placeholder stub
+  },
 }));

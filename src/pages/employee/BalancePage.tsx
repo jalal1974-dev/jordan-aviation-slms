@@ -68,8 +68,8 @@ const BalancePage: React.FC = () => {
   const usedDays = approved.reduce((s, l) => s + (l.approvedDays ?? l.totalDays), 0);
   const partialDays = partial.reduce((s, l) => s + (l.partialApprovalDetails?.approvedDays ?? 0), 0);
   const pendingDays = pending.reduce((s, l) => s + l.totalDays, 0);
-  const remaining = user.sickLeaveBalance;
-  const total = user.sickLeaveTotal;
+  const remaining = user.sickLeaveBalance ?? 0;
+  const total = user.sickLeaveTotal ?? 14;
 
   const donutData = [
     { name: t('balance.usedApproved'), value: usedDays, color: '#52c41a' },

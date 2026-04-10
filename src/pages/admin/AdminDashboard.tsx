@@ -40,8 +40,8 @@ import {
   Line,
   Legend,
 } from 'recharts';
-import { leavesAPI } from '../../services/api';
 import type { SickLeave } from '../../types';
+import { mockSickLeaves } from '../../services/mockData';
 import SendResultModal from '../../components/admin/SendResultModal';
 
 const { Text } = Typography;

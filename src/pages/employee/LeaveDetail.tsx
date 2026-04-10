@@ -38,7 +38,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { useLeaveStore } from '../../store/leaveStore';
-import type { LeaveStatus } from '../../types';
+import type { LeaveStatus, Violation } from '../../types';
+import { mockViolations } from '../../services/mockData';
 
 const { Text, Title } = Typography;
 
@@ -132,7 +133,9 @@ const LeaveDetail: React.FC = () => {
     if (id) loadLeaveById(id);
   }, [id, loadLeaveById]);
 
-  const violation = leave?.violationId ? undefined : undefined;
+  const violation: Violation | undefined = leave?.violationId
+    ? mockViolations.find((v) => v.id === leave.violationId)
+    : undefined;
 
   if (isLoading) {
     return (

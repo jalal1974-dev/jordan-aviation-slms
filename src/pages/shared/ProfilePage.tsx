@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Card,
   Row,
@@ -75,8 +75,8 @@ const ProfilePage: React.FC = () => {
     { name: t('profile.pending'), value: pending },
   ].filter((d) => d.value > 0);
 
-  const used = user.sickLeaveTotal - user.sickLeaveBalance;
-  const pct = Math.round((used / user.sickLeaveTotal) * 100);
+  const used = (user.sickLeaveTotal ?? 14) - (user.sickLeaveBalance ?? 0);
+  const pct = Math.round((used / (user.sickLeaveTotal ?? 14)) * 100);
   const colorIdx = user.id.charCodeAt(user.id.length - 1) % AVATAR_BG.length;
 
   const roleKey =

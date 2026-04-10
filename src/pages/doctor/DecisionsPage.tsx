@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,7 +11,6 @@ import {
   ExclamationCircleFilled, SearchOutlined, ClearOutlined,
   MedicineBoxOutlined,
 } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
 import { leavesAPI } from '../../services/api';
 import type { SickLeave } from '../../types';
 

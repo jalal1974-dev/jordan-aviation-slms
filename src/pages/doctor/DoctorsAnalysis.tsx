@@ -11,7 +11,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
 } from 'recharts';
 import { doctorsAPI, leavesAPI } from '../../services/api';
-import type { Doctor, SickLeave } from '../../types';
+import type { Doctor } from '../../types';
+import { mockDoctors, mockSickLeaves } from '../../services/mockData';
 
 const { Title, Text } = Typography;
 const NAVY = '#0a1628';
@@ -239,7 +240,7 @@ const DoctorsAnalysis: React.FC = () => {
                   cy="50%"
                   outerRadius={95}
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${Math.round(percent * 100)}%`}
+                  label={(props: import('recharts').PieLabelRenderProps) => `${props.name}: ${Math.round((props.percent ?? 0) * 100)}%`}
                 >
                   {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                 </Pie>
