@@ -18,6 +18,7 @@ const LoginPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const clearError = useAuthStore((s) => s.clearError);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
@@ -36,21 +37,37 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (values: { email: string; password: string }) => {
     setLoading(true);
+    clearError();
     try {
-      const success = await login(values.email, values.password);
-      if (success) {
-        const user = useAuthStore.getState().user;
-        if (user) navigate(getDashboard(user.role));
-      } else {
-        message.error(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
-      }
+      await login(values.email, values.password);
+      const user = useAuthStore.getState().user;
+      if (user) navigate(getDashboard(user.role));
+    } catch (err: unknown) {
+      const msg =
+        (err as Error)?.message ||
+        (isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
+      message.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const quickLogin = (email: string) => {
+  const quickLogin = async (email: string) => {
     form.setFieldsValue({ email, password: 'Test1234' });
+    setLoading(true);
+    clearError();
+    try {
+      await login(email, 'Test1234');
+      const user = useAuthStore.getState().user;
+      if (user) navigate(getDashboard(user.role));
+    } catch (err: unknown) {
+      const msg =
+        (err as Error)?.message ||
+        (isAr ? 'فشل تسجيل الدخول' : 'Login failed');
+      message.error(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const features = [
@@ -230,6 +247,7 @@ const LoginPage: React.FC = () => {
               <Button
                 block
                 size="large"
+                loading={loading}
                 onClick={() => quickLogin('employee@jordanaviation.jo')}
                 style={{ borderRadius: 8, textAlign: isAr ? 'right' : 'left' }}
               >
@@ -238,6 +256,7 @@ const LoginPage: React.FC = () => {
               <Button
                 block
                 size="large"
+                loading={loading}
                 onClick={() => quickLogin('doctor@jordanaviation.jo')}
                 style={{ borderRadius: 8, textAlign: isAr ? 'right' : 'left' }}
               >
@@ -246,6 +265,7 @@ const LoginPage: React.FC = () => {
               <Button
                 block
                 size="large"
+                loading={loading}
                 onClick={() => quickLogin('admin@jordanaviation.jo')}
                 style={{ borderRadius: 8, textAlign: isAr ? 'right' : 'left' }}
               >

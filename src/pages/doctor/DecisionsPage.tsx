@@ -11,7 +11,8 @@ import {
   ExclamationCircleFilled, SearchOutlined, ClearOutlined,
   MedicineBoxOutlined,
 } from '@ant-design/icons';
-import { mockSickLeaves } from '../../services/mockData';
+import { useEffect, useState } from 'react';
+import { leavesAPI } from '../../services/api';
 import type { SickLeave } from '../../types';
 
 const { Title, Text } = Typography;
@@ -25,8 +26,16 @@ const DecisionsPage: React.FC = () => {
 
   const [decisionFilter, setDecisionFilter] = useState<string | undefined>(undefined);
   const [search, setSearch]                  = useState('');
+  const [rawLeaves, setRawLeaves]            = useState<SickLeave[]>([]);
 
-  const allDecisions = mockSickLeaves.filter(
+  useEffect(() => {
+    leavesAPI.getAll().then((r) => {
+      const data: unknown[] = r.data?.data ?? r.data?.leaves ?? r.data ?? [];
+      setRawLeaves(Array.isArray(data) ? (data as SickLeave[]) : []);
+    }).catch(() => {});
+  }, []);
+
+  const allDecisions = rawLeaves.filter(
     (l) => l.status === 'APPROVED' || l.status === 'PARTIALLY_APPROVED' ||
            l.status === 'REJECTED'  || l.status === 'EXAMINATION_REQUESTED',
   );

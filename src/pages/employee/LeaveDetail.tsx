@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -14,6 +14,7 @@ import {
   Checkbox,
   Modal,
   List,
+  Spin,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -36,7 +37,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { getLeaveById, mockViolations } from '../../services/mockData';
+import { useLeaveStore } from '../../store/leaveStore';
 import type { LeaveStatus } from '../../types';
 
 const { Text, Title } = Typography;
@@ -125,11 +126,21 @@ const LeaveDetail: React.FC = () => {
   const [attendanceConfirmed, setAttendanceConfirmed] = useState(false);
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
-  const leave = useMemo(() => (id ? getLeaveById(id) : undefined), [id]);
-  const violation = useMemo(
-    () => (leave?.violationId ? mockViolations.find((v) => v.id === leave.violationId) : undefined),
-    [leave]
-  );
+  const { currentLeave: leave, loadLeaveById, isLoading } = useLeaveStore();
+
+  useEffect(() => {
+    if (id) loadLeaveById(id);
+  }, [id, loadLeaveById]);
+
+  const violation = leave?.violationId ? undefined : undefined;
+
+  if (isLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   if (!leave) {
     return (

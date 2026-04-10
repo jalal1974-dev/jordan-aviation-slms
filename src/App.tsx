@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
@@ -47,6 +47,28 @@ const DefaultRedirect: React.FC = () => {
 const App: React.FC = () => {
   const { i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+  const isLoading = useAuthStore((s) => s.isLoading);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f0f2f5',
+        }}
+      >
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <ConfigProvider
@@ -67,7 +89,6 @@ const App: React.FC = () => {
             </ProtectedRoute>
           }
         >
-          {/* Default index redirect */}
           <Route index element={<DefaultRedirect />} />
 
           {/* Employee routes */}

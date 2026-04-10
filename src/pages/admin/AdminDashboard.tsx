@@ -40,7 +40,7 @@ import {
   Line,
   Legend,
 } from 'recharts';
-import { mockSickLeaves } from '../../services/mockData';
+import { leavesAPI } from '../../services/api';
 import type { SickLeave } from '../../types';
 import SendResultModal from '../../components/admin/SendResultModal';
 

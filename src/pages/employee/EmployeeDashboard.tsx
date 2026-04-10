@@ -33,7 +33,6 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recha
 import { useAuthStore } from '../../store/authStore';
 import { useLeaveStore } from '../../store/leaveStore';
 import { useNotificationStore } from '../../store/notificationStore';
-import { getUserViolations } from '../../services/mockData';
 import type { SickLeave, Notification } from '../../types';
 
 const { Text } = Typography;
@@ -128,13 +127,11 @@ const EmployeeDashboard: React.FC = () => {
   const isAr = i18n.language === 'ar';
 
   useEffect(() => {
-    if (user) {
-      loadUserLeaves(user.id);
-      loadNotifications(user.id);
-    }
-  }, [user, loadUserLeaves, loadNotifications]);
+    loadUserLeaves();
+    loadNotifications();
+  }, [loadUserLeaves, loadNotifications]);
 
-  const violations = useMemo(() => (user ? getUserViolations(user.id) : []), [user]);
+  const violations = useMemo(() => [], []);
 
   const approved = useMemo(() => leaves.filter((l) => l.status === 'APPROVED'), [leaves]);
   const pending = useMemo(

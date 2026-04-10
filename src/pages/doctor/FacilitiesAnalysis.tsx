@@ -10,8 +10,8 @@ import {
   PieChart, Pie, Cell, Legend, Tooltip as RTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
 } from 'recharts';
-import { mockFacilities, mockSickLeaves } from '../../services/mockData';
-import type { Facility } from '../../types';
+import { facilitiesAPI, leavesAPI } from '../../services/api';
+import type { Facility, SickLeave } from '../../types';
 
 const { Title, Text } = Typography;
 const NAVY = '#0a1628';

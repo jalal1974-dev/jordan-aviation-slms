@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   Tag,
@@ -14,6 +14,7 @@ import {
   Empty,
   Badge,
   Space,
+  Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { RangePickerProps } from 'antd/es/date-picker';
@@ -31,8 +32,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useAuthStore } from '../../store/authStore';
-import { getUserLeaves } from '../../services/mockData';
+import { useLeaveStore } from '../../store/leaveStore';
 import type { SickLeave, LeaveStatus } from '../../types';
 
 const { Text, Title } = Typography;
@@ -67,14 +67,17 @@ const formatSize = (bytes: number) => {
 const MyLeaves: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
   const isAr = i18n.language === 'ar';
+
+  const { leaves: rawLeaves, loadUserLeaves, isLoading } = useLeaveStore();
 
   const [statusFilter, setStatusFilter] = useState<LeaveStatus[]>([]);
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null]);
 
-  const rawLeaves = useMemo(() => (user ? getUserLeaves(user.id) : []), [user]);
+  useEffect(() => {
+    loadUserLeaves();
+  }, [loadUserLeaves]);
 
   const filtered = useMemo(() => {
     let list = rawLeaves;
@@ -441,6 +444,11 @@ const MyLeaves: React.FC = () => {
         style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: 0 }}
       >
+        {isLoading && (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin size="large" />
+          </div>
+        )}
         <Table<SickLeave>
           dataSource={filtered}
           columns={columns}

@@ -27,7 +27,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { mockSickLeaves } from '../../services/mockData';
+import { leavesAPI } from '../../services/api';
 import type { SickLeave } from '../../types';
 
 const { Title, Text } = Typography;
@@ -119,16 +119,25 @@ const DoctorDashboard: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const displayName = user ? (isAr ? user.nameAr : user.nameEn) : '';
 
-  const pendingLeaves = mockSickLeaves
+  const [allLeaves, setAllLeaves] = React.useState<SickLeave[]>([]);
+
+  React.useEffect(() => {
+    leavesAPI.getAll().then((r) => {
+      const data: unknown[] = r.data?.data ?? r.data?.leaves ?? r.data ?? [];
+      setAllLeaves(Array.isArray(data) ? (data as SickLeave[]) : []);
+    }).catch(() => {});
+  }, []);
+
+  const pendingLeaves = allLeaves
     .filter((l) => PENDING_STATUSES.includes(l.status))
     .sort((a, b) => {
       const order: Record<Priority, number> = { HIGH: 0, MEDIUM: 1, NORMAL: 2 };
       return order[calculatePriority(a)] - order[calculatePriority(b)];
     });
 
-  const examinationLeaves = mockSickLeaves.filter((l) => l.status === 'EXAMINATION_REQUESTED');
-  const approvedCount = mockSickLeaves.filter((l) => l.status === 'APPROVED' || l.status === 'PARTIALLY_APPROVED').length;
-  const rejectedCount = mockSickLeaves.filter((l) => l.status === 'REJECTED').length;
+  const examinationLeaves = allLeaves.filter((l) => l.status === 'EXAMINATION_REQUESTED');
+  const approvedCount = allLeaves.filter((l) => l.status === 'APPROVED' || l.status === 'PARTIALLY_APPROVED').length;
+  const rejectedCount = allLeaves.filter((l) => l.status === 'REJECTED').length;
 
   const today = new Date().toLocaleDateString(isAr ? 'ar-JO' : 'en-GB', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',

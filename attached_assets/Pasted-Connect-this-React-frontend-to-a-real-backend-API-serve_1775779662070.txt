@@ -1,0 +1,342 @@
+Connect this React frontend to a real backend API server. The backend is ALREADY built and running with all endpoints working.
+
+Backend API URL: https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev
+
+IMPORTANT: Do NOT change any UI, design, pages, or components. ONLY change the data layer to fetch from real API instead of mock data.
+
+=== STEP 1: Install axios ===
+Run: npm install axios
+
+=== STEP 2: Create .env file in project root ===
+VITE_API_URL=https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api
+
+=== STEP 3: Create src/services/api.ts ===
+
+Create a centralized API service with axios:
+
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api',
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' }
+});
+
+// Request interceptor - attach JWT token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('slms_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor - handle 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('slms_token');
+      localStorage.removeItem('slms_user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Auth API
+export const authAPI = {
+  login: (email: string, password: string) => api.post('/auth/login', { email, password }),
+  register: (data: any) => api.post('/auth/register', data),
+  getMe: () => api.get('/auth/me'),
+};
+
+// Leaves API
+export const leavesAPI = {
+  getAll: (params?: any) => api.get('/leaves', { params }),
+  getById: (id: string) => api.get(`/leaves/${id}`),
+  submit: (data: any) => api.post('/leaves', data),
+  updateStatus: (id: string, status: string) => api.put(`/leaves/${id}/status`, { status }),
+  submitDecision: (id: string, data: any) => api.post(`/leaves/${id}/decision`, data),
+};
+
+// Employees API
+export const employeesAPI = {
+  getAll: (params?: any) => api.get('/employees', { params }),
+  getById: (id: string) => api.get(`/employees/${id}`),
+  update: (id: string, data: any) => api.put(`/employees/${id}`, data),
+};
+
+// Facilities API
+export const facilitiesAPI = {
+  getAll: (params?: any) => api.get('/facilities', { params }),
+  create: (data: any) => api.post('/facilities', data),
+  update: (id: string, data: any) => api.put(`/facilities/${id}`, data),
+  toggleBlock: (id: string, data: any) => api.put(`/facilities/${id}/block`, data),
+};
+
+// Doctors API
+export const doctorsAPI = {
+  getAll: (params?: any) => api.get('/doctors', { params }),
+  create: (data: any) => api.post('/doctors', data),
+  update: (id: string, data: any) => api.put(`/doctors/${id}`, data),
+};
+
+// Circulars API
+export const circularsAPI = {
+  getAll: (params?: any) => api.get('/circulars', { params }),
+  create: (data: any) => api.post('/circulars', data),
+  update: (id: string, data: any) => api.put(`/circulars/${id}`, data),
+  delete: (id: string) => api.delete(`/circulars/${id}`),
+};
+
+// Penalties API
+export const penaltiesAPI = {
+  getAll: (params?: any) => api.get('/penalties', { params }),
+  apply: (data: any) => api.post('/penalties', data),
+  revoke: (id: string) => api.put(`/penalties/${id}/revoke`),
+};
+
+// Notifications API
+export const notificationsAPI = {
+  getAll: (params?: any) => api.get('/notifications', { params }),
+  markRead: (id: string) => api.put(`/notifications/${id}/read`),
+  markAllRead: () => api.put('/notifications/read-all'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+};
+
+// Reports API
+export const reportsAPI = {
+  getOverview: (params?: any) => api.get('/reports/overview', { params }),
+  getByDepartment: (params?: any) => api.get('/reports/by-department', { params }),
+  getByDoctor: (params?: any) => api.get('/reports/by-doctor', { params }),
+  getByFacility: (params?: any) => api.get('/reports/by-facility', { params }),
+  getViolations: (params?: any) => api.get('/reports/violations', { params }),
+};
+
+export default api;
+
+=== STEP 4: Update src/store/authStore.ts ===
+
+Replace the mock authentication with real API calls. Keep the SAME Zustand interface but use real API:
+
+import { create } from 'zustand';
+import { authAPI } from '../services/api';
+
+interface User {
+  id: string;
+  nameEn: string;
+  nameAr: string;
+  email: string;
+  role: 'EMPLOYEE' | 'COMPANY_DOCTOR' | 'HR_MANAGER' | 'HR_OFFICER';
+  employeeNumber: string;
+  phone?: string;
+  title?: string;
+  titleAr?: string;
+  avatar?: string;
+  department: {
+    id: string;
+    nameEn: string;
+    nameAr: string;
+    code: string;
+  };
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  checkAuth: () => Promise<void>;
+  clearError: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  token: localStorage.getItem('slms_token'),
+  isAuthenticated: false,
+  isLoading: true,
+  error: null,
+
+  login: async (email: string, password: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await authAPI.login(email, password);
+      const { token, user } = response.data;
+      localStorage.setItem('slms_token', token);
+      localStorage.setItem('slms_user', JSON.stringify(user));
+      set({ user, token, isAuthenticated: true, isLoading: false, error: null });
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
+      set({ isLoading: false, error: message });
+      throw new Error(message);
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('slms_token');
+    localStorage.removeItem('slms_user');
+    set({ user: null, token: null, isAuthenticated: false, isLoading: false, error: null });
+  },
+
+  checkAuth: async () => {
+    const token = localStorage.getItem('slms_token');
+    if (!token) {
+      set({ isLoading: false, isAuthenticated: false });
+      return;
+    }
+    try {
+      const response = await authAPI.getMe();
+      const user = response.data.user || response.data.data;
+      localStorage.setItem('slms_user', JSON.stringify(user));
+      set({ user, token, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      localStorage.removeItem('slms_token');
+      localStorage.removeItem('slms_user');
+      set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+    }
+  },
+
+  clearError: () => set({ error: null }),
+}));
+
+=== STEP 5: Update LoginPage.tsx ===
+
+Update the login page to use the real auth store:
+- Import useAuthStore
+- On form submit: call authStore.login(email, password)
+- Show loading spinner while logging in (antd Spin or Button loading)
+- Show error message using antd message.error() if login fails
+- On success: redirect based on user.role:
+  - EMPLOYEE → /employee/dashboard
+  - COMPANY_DOCTOR → /doctor/dashboard
+  - HR_MANAGER or HR_OFFICER → /admin/dashboard
+- The 3 quick-login demo buttons should call login with the preset credentials:
+  - Employee: employee@jordanaviation.jo / Test1234
+  - Doctor: doctor@jordanaviation.jo / Test1234
+  - Admin: admin@jordanaviation.jo / Test1234
+
+=== STEP 6: Update ProtectedRoute.tsx ===
+
+Update to use the new auth store:
+- Check isAuthenticated from authStore
+- If isLoading, show a full-page antd Spin spinner
+- If not authenticated, redirect to /login
+- If authenticated but wrong role, redirect to appropriate dashboard
+- Call checkAuth() on mount if token exists but user is null
+
+=== STEP 7: Update App.tsx ===
+
+Add auth initialization on app startup:
+- On mount, call authStore.checkAuth() to restore session from stored token
+- Show a loading screen while checking auth
+
+=== STEP 8: Update ALL Dashboard Pages ===
+
+For EACH dashboard page, add real data fetching:
+
+EmployeeDashboard.tsx:
+- On mount, fetch employee's leaves: leavesAPI.getAll()
+- The API will automatically filter by employee role
+- Calculate stats from response data
+- Show antd Spin while loading
+- Keep ALL existing UI exactly the same
+
+DoctorDashboard.tsx:
+- On mount, fetch pending leaves: leavesAPI.getAll({ status: 'UNDER_REVIEW' })
+- Calculate queue stats from response
+- Show antd Spin while loading
+- Keep ALL existing UI exactly the same
+
+AdminDashboard.tsx:
+- On mount, fetch from reportsAPI.getOverview()
+- Also fetch leavesAPI.getAll() for recent activity
+- Show antd Spin while loading
+- Keep ALL existing UI exactly the same
+
+=== STEP 9: Update ALL List Pages ===
+
+MyLeaves.tsx:
+- Fetch from leavesAPI.getAll() (API auto-filters for employee)
+- Map response data to existing table columns
+- Keep existing filters working (filter locally or pass as API params)
+
+ReviewQueue.tsx:
+- Fetch from leavesAPI.getAll() (API auto-filters for doctor role)
+- Map to existing table
+
+AllLeaves.tsx:
+- Fetch from leavesAPI.getAll(filters)
+- Pass filter values as API query params
+
+EmployeesPage.tsx:
+- Fetch from employeesAPI.getAll()
+
+FacilitiesPage.tsx:
+- Fetch from facilitiesAPI.getAll()
+
+FacilitiesAnalysis.tsx:
+- Fetch from facilitiesAPI.getAll()
+
+DoctorsPage.tsx:
+- Fetch from doctorsAPI.getAll()
+
+DoctorsAnalysis.tsx:
+- Fetch from doctorsAPI.getAll()
+
+CircularsPage.tsx:
+- Fetch from circularsAPI.getAll()
+
+PenaltiesPage.tsx:
+- Fetch from penaltiesAPI.getAll()
+
+NotificationsPage.tsx:
+- Fetch from notificationsAPI.getAll()
+
+ReportsPage.tsx:
+- Fetch from reportsAPI methods based on active tab
+
+=== STEP 10: Update Action Pages ===
+
+SubmitLeave.tsx:
+- On submit, call leavesAPI.submit(formData)
+- Show success message and redirect to MyLeaves
+
+LeaveReview.tsx (Doctor):
+- Fetch leave detail: leavesAPI.getById(id)
+- On decision submit: leavesAPI.submitDecision(id, decisionData)
+- Show success and redirect to ReviewQueue
+
+LeaveDetail.tsx:
+- Fetch from leavesAPI.getById(id)
+
+ProfilePage.tsx:
+- Use user data from authStore
+- Fetch additional stats from employeesAPI.getById(user.id)
+
+=== STEP 11: Update AppLayout.tsx ===
+
+- Get user from authStore instead of mock
+- Show real user name, role, avatar in sidebar/header
+- Notification bell: fetch real unread count from notificationsAPI.getUnreadCount()
+- Logout button: call authStore.logout()
+
+=== CRITICAL REQUIREMENTS ===
+
+1. Do NOT change ANY UI design, layouts, colors, or styling
+2. Do NOT remove any pages or components
+3. ONLY change the data source from mock to API
+4. Add loading states (antd Spin) to every page that fetches data
+5. Add error handling (antd message.error) for all API calls
+6. If API response format differs slightly from existing types, MAP the data in the API service or in the component
+7. The existing TypeScript types in src/types/index.ts may need minor updates to match API response - update them if needed
+8. Keep ALL bilingual (Arabic/English) support working
+9. Keep ALL RTL/LTR support working
+10. If a page gets no data from API, show empty state (antd Empty) instead of crashing
+11. localStorage key for token: "slms_token"
+12. localStorage key for user: "slms_user"
+13. ALL 3 quick-login buttons on login page MUST work
+14. Test that login → dashboard → pages all work for all 3 roles

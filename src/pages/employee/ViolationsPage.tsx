@@ -16,8 +16,9 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { mockViolations } from '../../services/mockData';
+import { penaltiesAPI } from '../../services/api';
 import type { Violation } from '../../types';
 
 const { Text, Title, Paragraph } = Typography;
@@ -33,10 +34,14 @@ const ViolationsPage: React.FC = () => {
   const isAr = i18n.language === 'ar';
   const { user } = useAuthStore();
 
-  const violations = useMemo(
-    () => (user ? mockViolations.filter((v) => v.employeeId === user.id) : []),
-    [user]
-  );
+  const [violations, setViolations] = useState<Violation[]>([]);
+
+  useEffect(() => {
+    penaltiesAPI.getAll().then((r) => {
+      const data: unknown[] = r.data?.data ?? r.data?.penalties ?? r.data ?? [];
+      setViolations(Array.isArray(data) ? (data as Violation[]) : []);
+    }).catch(() => {});
+  }, [user]);
 
   const maxViolation = violations.reduce((m, v) => Math.max(m, v.violationNumber), 0);
 

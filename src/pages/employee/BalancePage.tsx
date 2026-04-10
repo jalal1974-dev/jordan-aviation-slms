@@ -26,7 +26,7 @@ import {
   Legend,
 } from 'recharts';
 import { useAuthStore } from '../../store/authStore';
-import { mockSickLeaves } from '../../services/mockData';
+import { useLeaveStore } from '../../store/leaveStore';
 
 const { Text, Title } = Typography;
 
@@ -51,11 +51,11 @@ const StatCard: React.FC<{ label: string; value: number | string; color?: string
 const BalancePage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const { leaves, loadUserLeaves } = useLeaveStore();
 
-  const leaves = useMemo(
-    () => (user ? mockSickLeaves.filter((l) => l.employeeId === user.id) : []),
-    [user]
-  );
+  React.useEffect(() => {
+    loadUserLeaves();
+  }, [loadUserLeaves]);
 
   if (!user) return null;
 

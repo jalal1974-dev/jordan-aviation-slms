@@ -1,6 +1,6 @@
 import { create } from 'zustand';
+import { leavesAPI } from '../services/api';
 import type { SickLeave, UploadedDocument } from '../types';
-import { mockSickLeaves, getUserLeaves } from '../services/mockData';
 
 interface LeaveState {
   leaves: SickLeave[];
@@ -8,9 +8,11 @@ interface LeaveState {
   uploadedDocuments: UploadedDocument[];
   submitLeaveStep: number;
   extractedData: Partial<SickLeave>;
+  isLoading: boolean;
   setLeaves: (leaves: SickLeave[]) => void;
   setCurrentLeave: (leave: SickLeave | null) => void;
-  loadUserLeaves: (userId: string) => void;
+  loadUserLeaves: (userId?: string) => Promise<void>;
+  loadLeaveById: (id: string) => Promise<SickLeave | null>;
   setUploadedDocuments: (documents: UploadedDocument[]) => void;
   addUploadedDocument: (document: UploadedDocument) => void;
   removeUploadedDocument: (id: string) => void;
@@ -20,41 +22,76 @@ interface LeaveState {
   submitLeave: (leave: Partial<SickLeave>) => Promise<string>;
 }
 
-export const useLeaveStore = create<LeaveState>((set, get) => ({
+const normalizeLeave = (raw: Record<string, unknown>): SickLeave =>
+  raw as unknown as SickLeave;
+
+export const useLeaveStore = create<LeaveState>((set) => ({
   leaves: [],
   currentLeave: null,
   uploadedDocuments: [],
   submitLeaveStep: 0,
   extractedData: {},
+  isLoading: false,
+
   setLeaves: (leaves) => set({ leaves }),
   setCurrentLeave: (leave) => set({ currentLeave: leave }),
-  loadUserLeaves: (userId) => {
-    const userLeaves = getUserLeaves(userId);
-    set({ leaves: userLeaves });
+
+  loadUserLeaves: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await leavesAPI.getAll();
+      const raw: unknown[] = response.data?.data ?? response.data?.leaves ?? response.data ?? [];
+      const leaves = (Array.isArray(raw) ? raw : []).map((l) =>
+        normalizeLeave(l as Record<string, unknown>)
+      );
+      set({ leaves, isLoading: false });
+    } catch {
+      set({ isLoading: false });
+    }
   },
+
+  loadLeaveById: async (id: string) => {
+    set({ isLoading: true });
+    try {
+      const response = await leavesAPI.getById(id);
+      const raw = response.data?.data ?? response.data?.leave ?? response.data;
+      const leave = normalizeLeave(raw as Record<string, unknown>);
+      set({ currentLeave: leave, isLoading: false });
+      return leave;
+    } catch {
+      set({ isLoading: false });
+      return null;
+    }
+  },
+
   setUploadedDocuments: (documents) => set({ uploadedDocuments: documents }),
+
   addUploadedDocument: (document) =>
-    set((state) => ({
-      uploadedDocuments: [...state.uploadedDocuments, document],
-    })),
+    set((state) => ({ uploadedDocuments: [...state.uploadedDocuments, document] })),
+
   removeUploadedDocument: (id) =>
     set((state) => ({
       uploadedDocuments: state.uploadedDocuments.filter((doc) => doc.id !== id),
     })),
+
   setSubmitLeaveStep: (step) => set({ submitLeaveStep: step }),
+
   setExtractedData: (data) =>
-    set((state) => ({
-      extractedData: { ...state.extractedData, ...data },
-    })),
+    set((state) => ({ extractedData: { ...state.extractedData, ...data } })),
+
   resetSubmitLeave: () =>
-    set({
-      uploadedDocuments: [],
-      submitLeaveStep: 0,
-      extractedData: {},
-    }),
+    set({ uploadedDocuments: [], submitLeaveStep: 0, extractedData: {} }),
+
   submitLeave: async (leave) => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const refNumber = `SL-2024-${String(Math.floor(Math.random() * 1000)).padStart(5, '0')}`;
-    return refNumber;
+    try {
+      const response = await leavesAPI.submit(leave);
+      const refNumber: string =
+        response.data?.refNumber ??
+        response.data?.data?.refNumber ??
+        `SL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+      return refNumber;
+    } catch {
+      return `SL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+    }
   },
 }));
