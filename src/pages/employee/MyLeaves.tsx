@@ -32,7 +32,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useLeaveStore } from '../../store/leaveStore';
+import { leavesAPI } from '../../services/api';
 import type { SickLeave, LeaveStatus } from '../../types';
 
 const { Text, Title } = Typography;
@@ -69,15 +69,23 @@ const MyLeaves: React.FC = () => {
   const navigate = useNavigate();
   const isAr = i18n.language === 'ar';
 
-  const { leaves: rawLeaves, loadUserLeaves, isLoading } = useLeaveStore();
+  const [rawLeaves, setRawLeaves] = useState<SickLeave[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [statusFilter, setStatusFilter] = useState<LeaveStatus[]>([]);
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null]);
 
   useEffect(() => {
-    loadUserLeaves();
-  }, [loadUserLeaves]);
+    setIsLoading(true);
+    leavesAPI.getAll()
+      .then((res) => {
+        const data = res.data?.data ?? res.data ?? [];
+        setRawLeaves(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
     let list = rawLeaves;
@@ -245,13 +253,16 @@ const MyLeaves: React.FC = () => {
       dataIndex: 'diagnosis',
       key: 'diagnosis',
       width: 160,
-      render: (text) => (
-        <Tooltip title={text}>
-          <Text style={{ fontSize: 12 }} ellipsis>
-            {text.length > 28 ? `${text.slice(0, 28)}…` : text}
-          </Text>
-        </Tooltip>
-      ),
+      render: (text: string | null | undefined) => {
+        const safe = text ?? '';
+        return (
+          <Tooltip title={safe}>
+            <Text style={{ fontSize: 12 }} ellipsis>
+              {safe.length > 28 ? `${safe.slice(0, 28)}…` : safe}
+            </Text>
+          </Tooltip>
+        );
+      },
       responsive: ['lg'] as ('lg')[],
     },
     {
@@ -261,7 +272,7 @@ const MyLeaves: React.FC = () => {
       width: 160,
       sorter: (a, b) => a.status.localeCompare(b.status),
       render: (status: LeaveStatus) => {
-        const cfg = STATUS_CONFIG[status];
+        const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG['SUBMITTED'];
         return (
           <Tag
             color={cfg.color}

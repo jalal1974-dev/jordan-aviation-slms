@@ -196,11 +196,14 @@ const DoctorDashboard: React.FC = () => {
       title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
-      render: (v) => (
-        <Tag color={statusTagColor(v)} icon={v === 'PROCESSING' ? <LoadingOutlined /> : v === 'EXAMINATION_REQUESTED' ? <MedicineBoxOutlined /> : undefined}>
-          {t(`statuses.${v === 'PARTIALLY_APPROVED' ? 'partiallyApproved' : v === 'UNDER_REVIEW' ? 'underReview' : v === 'DOCS_REQUESTED' ? 'docsRequested' : v === 'EXAMINATION_REQUESTED' ? 'examinationRequested' : v.toLowerCase()}`)}
-        </Tag>
-      ),
+      render: (v: string | null | undefined) => {
+        const sv = v ?? '';
+        return (
+          <Tag color={statusTagColor(sv)} icon={sv === 'PROCESSING' ? <LoadingOutlined /> : sv === 'EXAMINATION_REQUESTED' ? <MedicineBoxOutlined /> : undefined}>
+            {t(`statuses.${sv === 'PARTIALLY_APPROVED' ? 'partiallyApproved' : sv === 'UNDER_REVIEW' ? 'underReview' : sv === 'DOCS_REQUESTED' ? 'docsRequested' : sv === 'EXAMINATION_REQUESTED' ? 'examinationRequested' : sv.toLowerCase()}`)}
+          </Tag>
+        );
+      },
     },
     {
       title: t('common.actions'),

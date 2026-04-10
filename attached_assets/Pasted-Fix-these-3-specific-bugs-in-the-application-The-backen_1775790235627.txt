@@ -1,0 +1,189 @@
+Fix these 3 specific bugs in the application. The backend API is at: https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api
+
+=== BUG 1: src/pages/employee/MyLeaves.tsx — Runtime Error ===
+
+This page crashes when loading. The issue is likely:
+- Accessing properties on null/undefined objects from API response
+- The API returns leaves at response.data.data (array of leave objects)
+- Each leave object has nested: employee, doctor, facility, documents
+- Any of these nested objects can be NULL
+
+Fix by:
+1. Read the ENTIRE file first to understand current code
+2. Make sure data is fetched correctly:
+   - Use leavesAPI.getAll() from '../../services/api'
+   - Set leaves from response.data.data || response.data || []
+   - Add loading state with Spin
+3. Add null-safety to ALL property accesses:
+   - leave.doctor?.nameAr ?? 'N/A'
+   - leave.doctor?.nameEn ?? 'N/A'  
+   - leave.doctor?.rank ?? 'N/A'
+   - leave.facility?.nameAr ?? 'N/A'
+   - leave.facility?.nameEn ?? 'N/A'
+   - leave.facility?.type ?? 'N/A'
+   - leave.employee?.nameAr ?? ''
+   - leave.employee?.department?.nameAr ?? ''
+   - leave.documents?.length ?? 0
+4. Fix ALL table column render functions to handle null data
+5. Fix ALL filter functions to handle null nested objects:
+   - .filter() calls that access leave.doctor.nameAr should use leave.doctor?.nameAr
+   - .filter() calls that access leave.facility.nameAr should use leave.facility?.nameAr
+6. Fix any .sort() comparisons that access nested properties
+7. Fix any statistics calculations that access nested properties
+8. Make sure status tags work (APPROVED, REJECTED, etc.) - display readable labels not raw enum
+9. Format dates properly using dayjs - not raw ISO strings
+10. Add empty state if no leaves returned
+
+Test: Login as employee@jordanaviation.jo / Test1234, click "My Leaves" menu — should show a table of leaves without crashing.
+
+=== BUG 2: src/pages/doctor/ReviewQueue.tsx — Runtime Error ===
+
+This page crashes when loading. The issue is likely:
+- Accessing properties on null/undefined nested objects
+- Functions like calculatePriority accessing facility.isBlocked when facility is null
+- Functions like isFrequentLeave that may reference undefined data
+- Department filter accessing leave.employee.department when employee or department is null
+
+Fix by:
+1. Read the ENTIRE file first to understand current code
+2. Make sure data is fetched correctly:
+   - Use leavesAPI.getAll() from '../../services/api'
+   - Set leaves from response.data.data || response.data || []
+   - Add loading state with Spin
+3. Fix calculatePriority function:
+   - Change facility.isBlocked to leave.facility?.isBlocked ?? false
+   - Change doctor.rank to leave.doctor?.rank ?? 'GP'
+   - Change leave.documents.length to leave.documents?.length ?? 0
+   - Handle case where facility or doctor is null
+4. Fix isFrequentLeave function:
+   - Make sure it handles the case where employee data is missing
+   - Use optional chaining on all property accesses
+5. Fix hasMissingDocs function:
+   - leave.documents?.length ?? 0
+6. Fix ALL filter functions:
+   - Department filter: leave.employee?.department?.id
+   - Rank filter: leave.doctor?.rank
+   - Status filter: leave.status
+   - Search: leave.employee?.nameAr?.includes() or similar with null checks
+7. Fix ALL table column render functions:
+   - Employee name: record.employee?.nameAr ?? 'N/A'
+   - Employee department: record.employee?.department?.nameAr ?? ''
+   - Doctor name: record.doctor?.nameAr ?? 'N/A'
+   - Doctor rank: show readable label, not raw enum value
+     - 'GP' → 'طبيب عام' / 'General Practitioner'
+     - 'RESIDENT' → 'طبيب مقيم' / 'Resident'  
+     - 'SPECIALIST' → 'اختصاصي' / 'Specialist'
+     - 'CONSULTANT' → 'استشاري' / 'Consultant'
+   - Facility name: record.facility?.nameAr ?? 'N/A'
+   - Priority: handle null values gracefully
+8. Fix any expandable row content that accesses nested properties
+9. Fix the tab counts (pending, under review, etc.) to handle null array
+10. Format dates with dayjs, not raw ISO strings
+
+Test: Login as doctor@jordanaviation.jo / Test1234, click "Review Queue" — should show filterable table of leaves without crashing.
+
+=== BUG 3: DoctorRanks display text showing raw instead of readable label ===
+
+In multiple pages, doctor.rank shows "GP", "SPECIALIST", "CONSULTANT" etc. as raw enum text, or worse shows "DoctorRanks" as a label.
+
+Create src/utils/helpers.ts with these helper functions:
+
+export const getDoctorRankLabel = (rank: string | null | undefined, isArabic: boolean = false): string => {
+  if (!rank) return 'N/A';
+  const ranks: Record<string, { en: string; ar: string }> = {
+    'GP': { en: 'General Practitioner', ar: 'طبيب عام' },
+    'RESIDENT': { en: 'Resident', ar: 'طبيب مقيم' },
+    'SPECIALIST': { en: 'Specialist', ar: 'اختصاصي' },
+    'CONSULTANT': { en: 'Consultant', ar: 'استشاري' },
+  };
+  return ranks[rank]?.[isArabic ? 'ar' : 'en'] ?? rank;
+};
+
+export const getFacilityTypeLabel = (type: string | null | undefined, isArabic: boolean = false): string => {
+  if (!type) return 'N/A';
+  const types: Record<string, { en: string; ar: string }> = {
+    'GOVERNMENT_HOSPITAL': { en: 'Government Hospital', ar: 'مستشفى حكومي' },
+    'PRIVATE_HOSPITAL': { en: 'Private Hospital', ar: 'مستشفى خاص' },
+    'PRIVATE_CLINIC': { en: 'Private Clinic', ar: 'عيادة خاصة' },
+    'HEALTH_CENTER': { en: 'Health Center', ar: 'مركز صحي' },
+    'PRIVATE_24H_CENTER': { en: '24h Center', ar: 'مركز 24 ساعة' },
+    'ROYAL_MEDICAL': { en: 'Royal Medical Services', ar: 'الخدمات الطبية الملكية' },
+    'UNIVERSITY_HOSPITAL': { en: 'University Hospital', ar: 'مستشفى جامعي' },
+    'MILITARY_HOSPITAL': { en: 'Military Hospital', ar: 'مستشفى عسكري' },
+  };
+  return types[type]?.[isArabic ? 'ar' : 'en'] ?? type;
+};
+
+export const getLeaveStatusLabel = (status: string | null | undefined, isArabic: boolean = false): string => {
+  if (!status) return 'N/A';
+  const statuses: Record<string, { en: string; ar: string }> = {
+    'SUBMITTED': { en: 'Submitted', ar: 'مقدمة' },
+    'PROCESSING': { en: 'Processing', ar: 'قيد المعالجة' },
+    'UNDER_REVIEW': { en: 'Under Review', ar: 'قيد المراجعة' },
+    'DOCS_REQUESTED': { en: 'Docs Requested', ar: 'مطلوب مستندات' },
+    'EXAMINATION_REQUESTED': { en: 'Exam Requested', ar: 'مطلوب فحص' },
+    'APPROVED': { en: 'Approved', ar: 'معتمدة' },
+    'PARTIALLY_APPROVED': { en: 'Partially Approved', ar: 'معتمدة جزئياً' },
+    'REJECTED': { en: 'Rejected', ar: 'مرفوضة' },
+  };
+  return statuses[status]?.[isArabic ? 'ar' : 'en'] ?? status;
+};
+
+export const getLeaveStatusColor = (status: string | null | undefined): string => {
+  const colors: Record<string, string> = {
+    'SUBMITTED': 'blue',
+    'PROCESSING': 'cyan',
+    'UNDER_REVIEW': 'orange',
+    'DOCS_REQUESTED': 'gold',
+    'EXAMINATION_REQUESTED': 'purple',
+    'APPROVED': 'green',
+    'PARTIALLY_APPROVED': 'lime',
+    'REJECTED': 'red',
+  };
+  return colors[status ?? ''] ?? 'default';
+};
+
+import dayjs from 'dayjs';
+
+export const formatDate = (date: string | Date | null | undefined): string => {
+  if (!date) return 'N/A';
+  return dayjs(date).format('YYYY-MM-DD');
+};
+
+export const formatDateAr = (date: string | Date | null | undefined): string => {
+  if (!date) return 'N/A';
+  return dayjs(date).format('DD/MM/YYYY');
+};
+
+Now import and use these helpers in:
+- src/pages/employee/MyLeaves.tsx — for doctor rank, facility type, status, dates
+- src/pages/doctor/ReviewQueue.tsx — for doctor rank, facility type, status, dates
+- src/pages/doctor/DoctorDashboard.tsx — for doctor rank display
+- src/pages/doctor/DecisionsPage.tsx — for any enum displays
+- src/pages/admin/AllLeaves.tsx — for all enum displays
+- Any other file that renders doctor.rank, facility.type, or leave.status directly
+
+Use like this:
+import { getDoctorRankLabel, getFacilityTypeLabel, getLeaveStatusLabel, getLeaveStatusColor, formatDate } from '../../utils/helpers';
+import { useTranslation } from 'react-i18next';
+
+// In component:
+const { i18n } = useTranslation();
+const isArabic = i18n.language === 'ar';
+
+// In table column render:
+render: (rank: string) => getDoctorRankLabel(rank, isArabic)
+render: (type: string) => getFacilityTypeLabel(type, isArabic)
+render: (status: string) => <Tag color={getLeaveStatusColor(status)}>{getLeaveStatusLabel(status, isArabic)}</Tag>
+render: (date: string) => formatDate(date)
+
+=== CRITICAL RULES ===
+1. Read each file COMPLETELY before making changes
+2. Do NOT change any visual design, layout, or styling
+3. ONLY fix the crashes and enum display issues
+4. Test that the app compiles without errors after ALL changes
+5. Make sure login works: employee@jordanaviation.jo / Test1234
+6. Make sure Employee "My Leaves" page loads without crashing
+7. Make sure Doctor "Review Queue" page loads without crashing
+8. All doctor ranks should show readable names, not enum values
+9. All dates should be formatted, not raw ISO strings

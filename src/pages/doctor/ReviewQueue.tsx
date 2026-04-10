@@ -105,7 +105,10 @@ const trustStars = (score: number | null) => {
 };
 
 const avatarColors = ['#1890ff', '#52c41a', '#fa8c16', '#eb2f96', '#722ed1'];
-const getAvatarColor = (id: string) => avatarColors[id.charCodeAt(id.length - 1) % avatarColors.length];
+const getAvatarColor = (id: string | null | undefined): string => {
+  if (!id || id.length === 0) return avatarColors[0];
+  return avatarColors[id.charCodeAt(id.length - 1) % avatarColors.length];
+};
 
 const ReviewQueue: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -400,14 +403,17 @@ const ReviewQueue: React.FC = () => {
       title: t('queue.diagnosis'),
       dataIndex: 'diagnosis',
       key: 'diagnosis',
-      sorter: (a, b) => a.diagnosis.localeCompare(b.diagnosis),
-      render: (v) => (
-        <Tooltip title={v}>
-          <Text style={{ fontSize: 13 }}>
-            {v.length > 25 ? v.substring(0, 25) + '...' : v}
-          </Text>
-        </Tooltip>
-      ),
+      sorter: (a, b) => (a.diagnosis ?? '').localeCompare(b.diagnosis ?? ''),
+      render: (v: string | null | undefined) => {
+        const safe = v ?? '';
+        return (
+          <Tooltip title={safe}>
+            <Text style={{ fontSize: 13 }}>
+              {safe.length > 25 ? safe.substring(0, 25) + '...' : safe}
+            </Text>
+          </Tooltip>
+        );
+      },
     },
     {
       title: t('queue.aiRisk'),
@@ -425,21 +431,24 @@ const ReviewQueue: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       sorter: (a, b) => a.status.localeCompare(b.status),
-      render: (v) => (
-        <Tag
-          color={statusTagColor(v)}
-          icon={
-            v === 'PROCESSING'
-              ? <LoadingOutlined />
-              : v === 'EXAMINATION_REQUESTED'
-              ? <MedicineBoxOutlined />
-              : undefined
-          }
-          style={{ fontSize: 12 }}
-        >
-          {t(`statuses.${v === 'PARTIALLY_APPROVED' ? 'partiallyApproved' : v === 'UNDER_REVIEW' ? 'underReview' : v === 'DOCS_REQUESTED' ? 'docsRequested' : v === 'EXAMINATION_REQUESTED' ? 'examinationRequested' : v.toLowerCase()}`)}
-        </Tag>
-      ),
+      render: (v: string | null | undefined) => {
+        const sv = v ?? '';
+        return (
+          <Tag
+            color={statusTagColor(sv)}
+            icon={
+              sv === 'PROCESSING'
+                ? <LoadingOutlined />
+                : sv === 'EXAMINATION_REQUESTED'
+                ? <MedicineBoxOutlined />
+                : undefined
+            }
+            style={{ fontSize: 12 }}
+          >
+            {t(`statuses.${sv === 'PARTIALLY_APPROVED' ? 'partiallyApproved' : sv === 'UNDER_REVIEW' ? 'underReview' : sv === 'DOCS_REQUESTED' ? 'docsRequested' : sv === 'EXAMINATION_REQUESTED' ? 'examinationRequested' : sv.toLowerCase()}`)}
+          </Tag>
+        );
+      },
     },
     {
       title: t('queue.flags'),
