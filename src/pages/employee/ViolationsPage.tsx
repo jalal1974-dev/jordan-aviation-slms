@@ -37,11 +37,26 @@ const ViolationsPage: React.FC = () => {
   const [violations, setViolations] = useState<Violation[]>([]);
 
   useEffect(() => {
+    if (!user) return;
     penaltiesAPI.getAll().then((r) => {
-      const data: unknown[] = r.data?.data ?? r.data?.penalties ?? r.data ?? [];
-      setViolations(Array.isArray(data) ? (data as Violation[]) : []);
-    }).catch(() => {});
-  }, [user]);
+      const raw: any[] = r.data?.data ?? r.data?.penalties ?? r.data ?? [];
+      const all = Array.isArray(raw) ? raw : [];
+      const myViolations = user.role === 'EMPLOYEE' ? all.filter((v: any) => v.employeeId === user.id) : all;
+      const mapped = myViolations.map((v: any) => ({
+        id: v.id,
+        employeeId: v.employeeId,
+        leaveId: v.leaveId,
+        leave: v.leave ? { ...v.leave, refNumber: v.leave.referenceNumber || v.leave.refNumber } : undefined,
+        date: v.appliedAt || v.date,
+        violationType: v.violationType,
+        penaltyType: v.violationType,
+        penaltyDays: v.salaryDeductionDays || v.penaltyDays,
+        description: (isAr ? v.penaltyDescriptionAr : v.penaltyDescriptionEn) || v.description || '',
+        violationNumber: v.violationNumber,
+      }));
+      setViolations(mapped as Violation[]);
+    }).catch((err) => { console.error('Failed to load violations:', err); });
+  }, [user, isAr]);
 
   const maxViolation = violations.reduce((m, v) => Math.max(m, v.violationNumber), 0);
 
