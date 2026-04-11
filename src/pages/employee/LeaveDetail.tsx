@@ -13,8 +13,9 @@ import {
   Upload,
   Checkbox,
   Modal,
-  List,
   Spin,
+  Image,
+  message,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -23,7 +24,6 @@ import {
   CloseCircleFilled,
   ExclamationCircleFilled,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   ExclamationCircleOutlined,
   MedicineBoxOutlined,
   LoadingOutlined,
@@ -33,12 +33,16 @@ import {
   WarningFilled,
   StarFilled,
   PlusOutlined,
+  EyeOutlined,
+  DownloadOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { useLeaveStore } from '../../store/leaveStore';
-import type { LeaveStatus, Violation } from '../../types';
+import { documentsAPI, uploadToCloudinary } from '../../services/api';
+import type { LeaveStatus, Violation, UploadedDocument } from '../../types';
 import { mockViolations } from '../../services/mockData';
 
 const { Text, Title } = Typography;
@@ -47,8 +51,8 @@ const { Text, Title } = Typography;
 const fmtDate = (d: Date | string) => dayjs(d).format('DD MMM YYYY');
 const fmtDateTime = (d: Date | string) => dayjs(d).format('DD MMM YYYY, h:mm A');
 
-const renderStars = (score: number | null) => {
-  if (score === null) return <Text type="secondary">N/A</Text>;
+const renderStars = (score: number | null | undefined) => {
+  if (score === null || score === undefined) return <Text type="secondary">N/A</Text>;
   const full = Math.round(score * 5);
   return (
     <span>
@@ -58,15 +62,94 @@ const renderStars = (score: number | null) => {
           style={{ color: i <= full ? '#faad14' : '#d9d9d9', fontSize: 12 }}
         />
       ))}
-      <Text style={{ marginInlineStart: 4, fontSize: 12 }}>{score.toFixed(2)}</Text>
+      <Text type="secondary" style={{ fontSize: 11, marginInlineStart: 4 }}>
+        ({(score * 100).toFixed(0)}%)
+      </Text>
     </span>
   );
 };
 
-const STATUS_META: Record<
-  LeaveStatus,
-  { bg: string; text: string; border: string }
-> = {
+// Map backend status to frontend status
+const mapStatus = (status: string): LeaveStatus => {
+  const statusMap: Record<string, LeaveStatus> = {
+    PENDING: 'SUBMITTED',
+    SUBMITTED: 'SUBMITTED',
+    PROCESSING: 'PROCESSING',
+    UNDER_REVIEW: 'UNDER_REVIEW',
+    DOCS_REQUESTED: 'DOCS_REQUESTED',
+    EXAMINATION_REQUESTED: 'EXAMINATION_REQUESTED',
+    APPROVED: 'APPROVED',
+    PARTIALLY_APPROVED: 'PARTIALLY_APPROVED',
+    REJECTED: 'REJECTED',
+    PENDING_COMMITTEE: 'PENDING_COMMITTEE',
+  };
+  return statusMap[status] || (status as LeaveStatus);
+};
+
+// Map backend leave data to frontend format
+const mapLeaveData = (raw: Record<string, unknown>) => {
+  return {
+    ...raw,
+    refNumber: raw.referenceNumber || raw.refNumber || '',
+    status: mapStatus((raw.status as string) || 'SUBMITTED'),
+    employeeComments: raw.employeeComment || raw.employeeComments || '',
+    icd10Code: raw.icdCode || raw.icd10Code || '',
+    wasHospitalized: raw.isHospitalized ?? raw.wasHospitalized ?? false,
+    isChronicDisease: raw.isChronicDisease ?? false,
+    companyDoctorAssessment: (raw.decision as Record<string, unknown>)?.medicalAssessment || raw.companyDoctorAssessment || '',
+    companyDoctorInstructions: (raw.decision as Record<string, unknown>)?.instructionsToEmployee || raw.companyDoctorInstructions || '',
+    rejectionReason: (() => {
+      const decision = raw.decision as Record<string, unknown> | null;
+      if (decision?.rejectionReasons) {
+        const reasons = decision.rejectionReasons as string[];
+        return Array.isArray(reasons) ? reasons.join('; ') : String(reasons);
+      }
+      return raw.rejectionReason || '';
+    })(),
+    documents: raw.documents || [],
+    timeline: raw.timeline || [
+      {
+        id: '1',
+        timestamp: raw.submittedAt || raw.createdAt || new Date(),
+        type: 'SUBMITTED',
+        description: 'Leave request submitted',
+        color: 'blue',
+      },
+      ...(raw.reviewedAt
+        ? [{
+            id: '2',
+            timestamp: raw.reviewedAt,
+            type: 'REVIEWED',
+            description: 'Under review by company doctor',
+            color: 'orange',
+          }]
+        : []),
+      ...(raw.decidedAt
+        ? [{
+            id: '3',
+            timestamp: raw.decidedAt,
+            type: 'DECIDED',
+            description: `Decision made: ${mapStatus((raw.status as string) || '')}`,
+            color: raw.status === 'APPROVED' ? 'green' : raw.status === 'REJECTED' ? 'red' : 'gold',
+          }]
+        : []),
+    ],
+  };
+};
+
+// Map backend document to frontend format
+const mapDocument = (doc: Record<string, unknown>): UploadedDocument => ({
+  id: (doc.id as string) || '',
+  fileName: (doc.fileName as string) || 'Document',
+  fileSize: (doc.fileSize as number) || 0,
+  fileType: (doc.fileType as string) || 'image/jpeg',
+  url: (doc.fileUrl as string) || (doc.url as string) || '',
+  classification: ((doc.documentType as string) || (doc.classification as string) || 'OTHER') as UploadedDocument['classification'],
+  confidence: (doc.confidence as number) || 0.9,
+  uploadedAt: (doc.uploadedAt as Date) || (doc.createdAt as Date) || new Date(),
+});
+
+const STATUS_META: Record<string, { bg: string; text: string; border: string }> = {
   SUBMITTED: { bg: '#1890ff', text: '#fff', border: '#1890ff' },
   PROCESSING: { bg: '#13c2c2', text: '#fff', border: '#13c2c2' },
   UNDER_REVIEW: { bg: '#fa8c16', text: '#fff', border: '#fa8c16' },
@@ -100,6 +183,7 @@ const DOC_TYPE_LABEL: Record<string, string> = {
 
 const RANK_LABEL: Record<string, string> = {
   GP: 'GP',
+  GENERAL_PRACTITIONER: 'GP',
   RESIDENT: 'Resident',
   SPECIALIST: 'Specialist',
   CONSULTANT: 'Consultant',
@@ -113,8 +197,21 @@ const FACILITY_TYPE_LABEL: Record<string, string> = {
   HEALTH_CENTER: 'Health Center',
   PRIVATE_CLINIC: 'Private Clinic',
   PRIVATE_24H: 'Private 24h Center',
+  PRIVATE_24H_CENTER: 'Private 24h Center',
   SPECIALIZED_CENTER: 'Specialized Center',
   MILITARY_HOSPITAL: 'Military Hospital',
+};
+
+// Check if URL is an image
+const isImageUrl = (url: string) => {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return lower.includes('.jpg') || lower.includes('.jpeg') || lower.includes('.png') || lower.includes('.gif') || lower.includes('.webp') || lower.includes('/image/');
+};
+
+const isPdfUrl = (url: string) => {
+  if (!url) return false;
+  return url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('/raw/');
 };
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -126,16 +223,88 @@ const LeaveDetail: React.FC = () => {
 
   const [attendanceConfirmed, setAttendanceConfirmed] = useState(false);
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [realDocuments, setRealDocuments] = useState<UploadedDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const { currentLeave: leave, loadLeaveById, isLoading } = useLeaveStore();
+  const { currentLeave: rawLeave, loadLeaveById, isLoading } = useLeaveStore();
+
+  // Map the raw leave data to frontend format
+  const leave = rawLeave ? mapLeaveData(rawLeave as unknown as Record<string, unknown>) as unknown as import('../../types').SickLeave : null;
 
   useEffect(() => {
     if (id) loadLeaveById(id);
   }, [id, loadLeaveById]);
 
+  // Fetch real documents from API
+  useEffect(() => {
+    if (id) {
+      setDocsLoading(true);
+      documentsAPI.getByLeave(id)
+        .then((res) => {
+          const docs = res.data?.data ?? res.data ?? [];
+          const mapped = (Array.isArray(docs) ? docs : []).map((d: Record<string, unknown>) => mapDocument(d));
+          setRealDocuments(mapped);
+        })
+        .catch(() => {
+          setRealDocuments([]);
+        })
+        .finally(() => setDocsLoading(false));
+    }
+  }, [id]);
+
+  // Combine documents from leave response + separately fetched documents
+  const allDocuments: UploadedDocument[] = [
+    ...(leave?.documents ?? []).map((d: Record<string, unknown>) => mapDocument(d as Record<string, unknown>)),
+    ...realDocuments.filter((rd) => !(leave?.documents ?? []).some((ld: { id: string }) => ld.id === rd.id)),
+  ];
+
   const violation: Violation | undefined = leave?.violationId
     ? mockViolations.find((v) => v.id === leave.violationId)
     : undefined;
+
+  // Handle additional document upload
+  const handleUploadDocument = async (file: File) => {
+    if (!id) return;
+    setUploading(true);
+    try {
+      // Upload to Cloudinary
+      const { url } = await uploadToCloudinary(file);
+      
+      // Save to backend
+      await documentsAPI.upload({
+        leaveId: id,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        fileUrl: url,
+        documentType: 'OTHER',
+      });
+
+      // Refresh documents
+      const res = await documentsAPI.getByLeave(id);
+      const docs = res.data?.data ?? res.data ?? [];
+      const mapped = (Array.isArray(docs) ? docs : []).map((d: Record<string, unknown>) => mapDocument(d));
+      setRealDocuments(mapped);
+
+      message.success('Document uploaded successfully!');
+    } catch {
+      message.error('Failed to upload document');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle document delete
+  const handleDeleteDocument = async (docId: string) => {
+    try {
+      await documentsAPI.delete(docId);
+      setRealDocuments((prev) => prev.filter((d) => d.id !== docId));
+      message.success('Document deleted');
+    } catch {
+      message.error('Failed to delete document');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -157,7 +326,7 @@ const LeaveDetail: React.FC = () => {
     );
   }
 
-  const meta = STATUS_META[leave.status];
+  const meta = STATUS_META[leave.status] || STATUS_META.SUBMITTED;
   const examDaysLeft = leave.examinationDetails
     ? dayjs(leave.examinationDetails.date).diff(dayjs(), 'day')
     : 0;
@@ -211,7 +380,7 @@ const LeaveDetail: React.FC = () => {
               </Text>
             </div>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
-              Dr. Jalal Al-Khashman
+              Company Doctor Review
             </Text>
           </div>
         );
@@ -231,24 +400,13 @@ const LeaveDetail: React.FC = () => {
               </Text>
             </div>
             {leave.requestedDocuments && leave.requestedDocuments.length > 0 && (
-              <Card
-                style={{ borderRadius: 10, marginBottom: 16, borderColor: '#722ed1' }}
-              >
+              <Card style={{ borderRadius: 10, marginBottom: 16, borderColor: '#722ed1' }}>
                 <Text strong style={{ display: 'block', marginBottom: 12, color: '#722ed1', fontSize: 14 }}>
                   {t('leaveDetail.requestedDocs')}
                 </Text>
-                {leave.requestedDocuments.map((doc, i) => (
+                {leave.requestedDocuments.map((doc: string, i: number) => (
                   <Alert key={i} type="warning" showIcon message={doc} style={{ marginBottom: 6, borderRadius: 6 }} />
                 ))}
-                <div style={{ marginTop: 12 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {t('leaveDetail.deadline')}: {fmtDate(new Date(Date.now() + 5 * 86400000))}
-                    {' — '}
-                    <Text style={{ color: '#fa8c16', fontWeight: 600 }}>
-                      {t('leaveDetail.daysRemaining', { days: 5 })}
-                    </Text>
-                  </Text>
-                </div>
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -273,16 +431,11 @@ const LeaveDetail: React.FC = () => {
               </div>
             </div>
             {leave.examinationDetails && (
-              <Card
-                style={{ borderRadius: 12, marginBottom: 16, border: '2px solid #eb2f96' }}
-              >
+              <Card style={{ borderRadius: 12, marginBottom: 16, border: '2px solid #eb2f96' }}>
                 <Row gutter={[20, 12]}>
                   <Col xs={24} md={14}>
                     <Title level={5} style={{ color: '#eb2f96', marginBottom: 16 }}>
-                      📅 {t('leaveDetail.examinationAppointment', {
-                        date: fmtDate(leave.examinationDetails.date),
-                        time: leave.examinationDetails.time,
-                      })}
+                      📅 Examination Appointment
                     </Title>
                     {[
                       { icon: '📅', label: t('leaveDetail.examDate'), val: fmtDate(leave.examinationDetails.date) },
@@ -301,7 +454,7 @@ const LeaveDetail: React.FC = () => {
                   <Col xs={24} md={10}>
                     <Card
                       style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 8 }}
-                      bodyStyle={{ padding: '12px 16px' }}
+                      styles={{ body: { padding: '12px 16px' } }}
                     >
                       <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
                         📋 {t('leaveDetail.examinationRequirements')}
@@ -330,7 +483,7 @@ const LeaveDetail: React.FC = () => {
                         }}
                       >
                         <Text style={{ color: '#ff4d4f', fontSize: 13, fontWeight: 600 }}>
-                          ⏱️ {t('leaveDetail.countdown', { days: examDaysLeft })}
+                          ⏱️ {examDaysLeft} days remaining
                         </Text>
                       </div>
                     )}
@@ -374,7 +527,7 @@ const LeaveDetail: React.FC = () => {
                   {t('leaveDetail.statusApproved')}
                 </Text>
                 <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
-                  {leave.approvedDays} {t('common.days')} — {fmtDate(leave.fromDate)} → {fmtDate(leave.toDate)}
+                  {leave.approvedDays || leave.totalDays} {t('common.days')} — {fmtDate(leave.fromDate)} → {fmtDate(leave.toDate)}
                 </Text>
               </div>
             </div>
@@ -395,28 +548,18 @@ const LeaveDetail: React.FC = () => {
               {pa && (
                 <div>
                   <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', marginBottom: 8, maxWidth: 400 }}>
-                    <div
-                      style={{
-                        width: `${(pa.approvedDays / leave.totalDays) * 100}%`,
-                        background: '#52c41a',
-                      }}
-                    />
-                    <div
-                      style={{
-                        width: `${(pa.rejectedDays / leave.totalDays) * 100}%`,
-                        background: '#ff4d4f',
-                      }}
-                    />
+                    <div style={{ width: `${(pa.approvedDays / leave.totalDays) * 100}%`, background: '#52c41a' }} />
+                    <div style={{ width: `${(pa.rejectedDays / leave.totalDays) * 100}%`, background: '#ff4d4f' }} />
                   </div>
                   <Row gutter={16}>
                     <Col>
                       <Tag color="green" style={{ fontWeight: 600 }}>
-                        ✅ {pa.approvedDays} {t('common.days')} {t('leaveDetail.approved')} — {t('leaveDetail.fullPay')}
+                        ✅ {pa.approvedDays} {t('common.days')} approved
                       </Tag>
                     </Col>
                     <Col>
                       <Tag color="red" style={{ fontWeight: 600 }}>
-                        ❌ {pa.rejectedDays} {t('common.days')} {t('leaveDetail.rejected')} — {t('leaveDetail.unpaid')}
+                        ❌ {pa.rejectedDays} {t('common.days')} rejected
                       </Tag>
                     </Col>
                   </Row>
@@ -456,7 +599,7 @@ const LeaveDetail: React.FC = () => {
   };
 
   // ── Timeline items ──────────────────────────────────────────────────────
-  const timelineItems = leave.timeline.map((evt) => ({
+  const timelineItems = (leave.timeline || []).map((evt) => ({
     color: evt.color,
     children: (
       <div>
@@ -526,10 +669,10 @@ const LeaveDetail: React.FC = () => {
                 label: t('leaveDetail.currentStatus'),
                 val: (
                   <Tag
-                    color={STATUS_META[leave.status].bg}
+                    color={meta.bg}
                     style={{ fontWeight: 600, color: '#fff' }}
                   >
-                    {leave.status.replace('_', ' ')}
+                    {leave.status.replace(/_/g, ' ')}
                   </Tag>
                 ),
               },
@@ -556,7 +699,7 @@ const LeaveDetail: React.FC = () => {
             {/* Doctor */}
             <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid #f5f5f5' }}>
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                {t('leaveDetail.diagnosis').replace('التشخيص', 'Doctor')} Doctor
+                Treating Doctor
               </Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Text style={{ fontWeight: 600, fontSize: 14 }}>
@@ -571,7 +714,7 @@ const LeaveDetail: React.FC = () => {
             {/* Facility */}
             <div>
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                {t('leaveDetail.medicalInformation').replace('المعلومات الطبية', 'Facility')} Facility
+                Medical Facility
               </Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Text style={{ fontWeight: 600, fontSize: 14 }}>
@@ -597,8 +740,8 @@ const LeaveDetail: React.FC = () => {
             style={{ borderRadius: 12, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             {[
-              { label: t('leaveDetail.symptoms'), val: leave.symptoms },
-              { label: t('leaveDetail.diagnosis'), val: leave.diagnosis },
+              { label: t('leaveDetail.symptoms'), val: leave.symptoms || '—' },
+              { label: t('leaveDetail.diagnosis'), val: leave.diagnosis || '—' },
               { label: t('leaveDetail.icd10'), val: leave.icd10Code || '—' },
               {
                 label: t('leaveDetail.hospitalized'),
@@ -653,17 +796,17 @@ const LeaveDetail: React.FC = () => {
                   style={{ fontSize: 15, padding: '4px 14px', fontWeight: 700 }}
                 >
                   {leave.status === 'APPROVED'
-                    ? `✅ ${t('leaveDetail.approved')}`
+                    ? `✅ Approved`
                     : leave.status === 'PARTIALLY_APPROVED'
-                    ? `⚠️ ${t('leaveDetail.statusPartiallyApproved')}`
-                    : `❌ ${t('leaveDetail.rejected')}`}
+                    ? `⚠️ Partially Approved`
+                    : `❌ Rejected`}
                 </Tag>
               </div>
 
               {leave.companyDoctorAssessment && (
                 <div style={{ marginBottom: 14 }}>
                   <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                    {t('leaveDetail.medicalAssessment')}
+                    Medical Assessment
                   </Text>
                   <div
                     style={{
@@ -682,17 +825,17 @@ const LeaveDetail: React.FC = () => {
                 <div style={{ marginBottom: 14 }}>
                   {[
                     {
-                      label: t('leaveDetail.approvedPeriod'),
+                      label: 'Approved Period',
                       color: 'green',
-                      content: `${fmtDate(leave.partialApprovalDetails.approvedFrom)} — ${fmtDate(leave.partialApprovalDetails.approvedTo)} (${leave.partialApprovalDetails.approvedDays} ${t('common.days')})`,
-                      badge: t('leaveDetail.fullPay'),
+                      content: `${fmtDate(leave.partialApprovalDetails.approvedFrom)} — ${fmtDate(leave.partialApprovalDetails.approvedTo)} (${leave.partialApprovalDetails.approvedDays} days)`,
+                      badge: 'Full Pay',
                       badgeColor: '#52c41a',
                     },
                     {
-                      label: t('leaveDetail.rejectedPeriod'),
+                      label: 'Rejected Period',
                       color: 'red',
-                      content: `${fmtDate(leave.partialApprovalDetails.rejectedFrom)} — ${fmtDate(leave.partialApprovalDetails.rejectedTo)} (${leave.partialApprovalDetails.rejectedDays} ${t('common.days')})`,
-                      badge: t('leaveDetail.unpaid'),
+                      content: `${fmtDate(leave.partialApprovalDetails.rejectedFrom)} — ${fmtDate(leave.partialApprovalDetails.rejectedTo)} (${leave.partialApprovalDetails.rejectedDays} days)`,
+                      badge: 'Unpaid',
                       badgeColor: '#ff4d4f',
                     },
                   ].map((row, i) => (
@@ -712,55 +855,16 @@ const LeaveDetail: React.FC = () => {
                       }}
                     >
                       <div>
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: row.badgeColor,
-                            fontWeight: 600,
-                            display: 'block',
-                          }}
-                        >
+                        <Text style={{ fontSize: 11, color: row.badgeColor, fontWeight: 600, display: 'block' }}>
                           {row.label}
                         </Text>
                         <Text style={{ fontSize: 13 }}>{row.content}</Text>
                       </div>
-                      <Tag
-                        style={{
-                          background: row.badgeColor,
-                          borderColor: row.badgeColor,
-                          color: '#fff',
-                          fontWeight: 600,
-                        }}
-                      >
+                      <Tag style={{ background: row.badgeColor, borderColor: row.badgeColor, color: '#fff', fontWeight: 600 }}>
                         {row.badge}
                       </Tag>
                     </div>
                   ))}
-
-                  <div style={{ marginTop: 8 }}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{t('leaveDetail.reason')}: </Text>
-                    <Text style={{ fontSize: 12 }}>{leave.partialApprovalDetails.reason}</Text>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: '10px 14px',
-                      background: '#fff7e6',
-                      borderRadius: 8,
-                      border: '1px solid #ffd591',
-                    }}
-                  >
-                    <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                      {t('leaveDetail.updatedBalance')}
-                    </Text>
-                    <Text style={{ fontSize: 13, fontWeight: 600 }}>
-                      8/14 → 7/14 {t('common.days')}
-                      <Tag color="orange" style={{ marginInlineStart: 8, fontSize: 11 }}>
-                        {t('leaveDetail.daysDeducted', { days: leave.partialApprovalDetails.approvedDays })}
-                      </Tag>
-                    </Text>
-                  </div>
                 </div>
               )}
 
@@ -768,7 +872,7 @@ const LeaveDetail: React.FC = () => {
                 <Alert
                   type="error"
                   showIcon
-                  message={t('leaveDetail.rejectionReasons')}
+                  message="Rejection Reasons"
                   description={leave.rejectionReason}
                   style={{ borderRadius: 8, marginBottom: 10 }}
                 />
@@ -777,7 +881,7 @@ const LeaveDetail: React.FC = () => {
               {leave.companyDoctorInstructions && (
                 <div>
                   <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                    {t('leaveDetail.instructionsToEmployee')}
+                    Instructions to Employee
                   </Text>
                   <Alert
                     type="info"
@@ -808,21 +912,21 @@ const LeaveDetail: React.FC = () => {
             >
               {[
                 {
-                  label: t('leaveDetail.violationNumber'),
+                  label: 'Violation Number',
                   val: violation.violationNumber === 1
-                    ? t('leaveDetail.firstViolation')
+                    ? 'First Violation'
                     : violation.violationNumber === 2
-                    ? t('leaveDetail.secondViolation')
-                    : t('leaveDetail.thirdViolation'),
+                    ? 'Second Violation'
+                    : 'Third Violation',
                 },
                 {
-                  label: t('leaveDetail.penaltyType'),
+                  label: 'Penalty Type',
                   val: violation.penaltyDays
-                    ? t('leaveDetail.salaryDeduction', { days: violation.penaltyDays })
-                    : t('leaveDetail.writtenWarning'),
+                    ? `${violation.penaltyDays} days salary deduction`
+                    : 'Written Warning',
                 },
                 {
-                  label: t('leaveDetail.appliedDate'),
+                  label: 'Applied Date',
                   val: fmtDate(violation.date),
                 },
               ].map((row, i) => (
@@ -873,92 +977,202 @@ const LeaveDetail: React.FC = () => {
             </div>
           </Card>
 
-          {/* My Documents */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* MY DOCUMENTS — REAL CLOUDINARY DISPLAY */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
           <Card
-            title={<span style={{ fontWeight: 700, color: '#001529' }}>{t('leaveDetail.myDocuments')}</span>}
+            title={
+              <span style={{ fontWeight: 700, color: '#001529' }}>
+                📄 {t('leaveDetail.myDocuments')}
+                {allDocuments.length > 0 && (
+                  <Tag color="blue" style={{ marginInlineStart: 8 }}>{allDocuments.length}</Tag>
+                )}
+              </span>
+            }
             style={{ borderRadius: 12, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
-            <Row gutter={[10, 10]} style={{ marginBottom: 16 }}>
-              {(leave.documents ?? []).map((doc) => {
-                const isPdf = doc.fileType === 'application/pdf';
-                return (
-                  <Col key={doc.id} xs={24} sm={12}>
-                    <div
-                      style={{
-                        border: '1px solid #f0f0f0',
-                        borderRadius: 8,
-                        padding: '10px 12px',
-                        display: 'flex',
-                        gap: 10,
-                        alignItems: 'flex-start',
-                      }}
-                    >
-                      <div style={{ fontSize: 24, color: isPdf ? '#ff4d4f' : '#1890ff' }}>
-                        {isPdf ? <FilePdfOutlined /> : <FileImageOutlined />}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ fontSize: 11, display: 'block', fontWeight: 500 }} ellipsis>
-                          {doc.fileName}
-                        </Text>
-                        <Tag
-                          color={DOC_TYPE_COLOR[doc.classification] || 'default'}
-                          style={{ fontSize: 9, marginTop: 2 }}
-                        >
-                          {DOC_TYPE_LABEL[doc.classification] || doc.classification}
-                        </Tag>
-                        <div style={{ marginTop: 4 }}>
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              color:
-                                doc.confidence >= 0.8
-                                  ? '#52c41a'
-                                  : doc.confidence >= 0.6
-                                  ? '#faad14'
-                                  : '#ff4d4f',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {Math.round(doc.confidence * 100)}%
-                          </Text>
-                          <Progress
-                            percent={Math.round(doc.confidence * 100)}
-                            showInfo={false}
-                            size="small"
-                            strokeColor={
-                              doc.confidence >= 0.8
-                                ? '#52c41a'
-                                : doc.confidence >= 0.6
-                                ? '#faad14'
-                                : '#ff4d4f'
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </Col>
-                );
-              })}
-            </Row>
+            {docsLoading ? (
+              <div style={{ textAlign: 'center', padding: 20 }}>
+                <Spin size="small" />
+                <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
+                  Loading documents...
+                </Text>
+              </div>
+            ) : allDocuments.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <FileImageOutlined style={{ fontSize: 40, color: '#d9d9d9' }} />
+                <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
+                  No documents uploaded yet
+                </Text>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  Upload documents using the section below
+                </Text>
+              </div>
+            ) : (
+              <Image.PreviewGroup>
+                <Row gutter={[10, 10]} style={{ marginBottom: 16 }}>
+                  {allDocuments.map((doc) => {
+                    const isImage = isImageUrl(doc.url) || doc.fileType?.startsWith('image/');
+                    const isPdf = isPdfUrl(doc.url) || doc.fileType === 'application/pdf';
 
-            {/* Checklist */}
+                    return (
+                      <Col key={doc.id} xs={24} sm={12}>
+                        <div
+                          style={{
+                            border: '1px solid #f0f0f0',
+                            borderRadius: 8,
+                            overflow: 'hidden',
+                            transition: 'box-shadow 0.2s',
+                          }}
+                        >
+                          {/* Document Preview */}
+                          {isImage && doc.url ? (
+                            <div style={{ position: 'relative', background: '#fafafa' }}>
+                              <Image
+                                src={doc.url}
+                                alt={doc.fileName}
+                                width="100%"
+                                height={140}
+                                style={{ objectFit: 'cover' }}
+                                placeholder={
+                                  <div style={{
+                                    width: '100%',
+                                    height: 140,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: '#f5f5f5',
+                                  }}>
+                                    <Spin size="small" />
+                                  </div>
+                                }
+                              />
+                            </div>
+                          ) : isPdf ? (
+                            <div
+                              style={{
+                                height: 140,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: '#fff2f0',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => window.open(doc.url, '_blank')}
+                            >
+                              <FilePdfOutlined style={{ fontSize: 48, color: '#ff4d4f' }} />
+                              <Text style={{ fontSize: 11, color: '#ff4d4f', marginTop: 4 }}>
+                                Click to view PDF
+                              </Text>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                height: 140,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: '#f0f5ff',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => window.open(doc.url, '_blank')}
+                            >
+                              <FileImageOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                              <Text style={{ fontSize: 11, color: '#1890ff', marginTop: 4 }}>
+                                Click to view
+                              </Text>
+                            </div>
+                          )}
+
+                          {/* Document Info */}
+                          <div style={{ padding: '8px 10px' }}>
+                            <Text style={{ fontSize: 11, display: 'block', fontWeight: 500 }} ellipsis>
+                              {doc.fileName}
+                            </Text>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                              <Tag
+                                color={DOC_TYPE_COLOR[doc.classification] || 'default'}
+                                style={{ fontSize: 9, margin: 0 }}
+                              >
+                                {DOC_TYPE_LABEL[doc.classification] || doc.classification || 'Document'}
+                              </Tag>
+                              {doc.fileSize > 0 && (
+                                <Text type="secondary" style={{ fontSize: 9 }}>
+                                  {(doc.fileSize / 1024).toFixed(0)} KB
+                                </Text>
+                              )}
+                            </div>
+
+                            {/* Action buttons */}
+                            <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                              {doc.url && (
+                                <Button
+                                  size="small"
+                                  type="link"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => window.open(doc.url, '_blank')}
+                                  style={{ fontSize: 11, padding: '0 4px' }}
+                                >
+                                  View
+                                </Button>
+                              )}
+                              {doc.url && (
+                                <Button
+                                  size="small"
+                                  type="link"
+                                  icon={<DownloadOutlined />}
+                                  onClick={() => {
+                                    const a = document.createElement('a');
+                                    a.href = doc.url;
+                                    a.target = '_blank';
+                                    a.download = doc.fileName;
+                                    a.click();
+                                  }}
+                                  style={{ fontSize: 11, padding: '0 4px' }}
+                                >
+                                  Download
+                                </Button>
+                              )}
+                              <Button
+                                size="small"
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => handleDeleteDocument(doc.id)}
+                                style={{ fontSize: 11, padding: '0 4px' }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </Col>
+                    );
+                  })}
+                </Row>
+              </Image.PreviewGroup>
+            )}
+
+            {/* Document Checklist */}
             <div style={{ borderTop: '1px solid #f5f5f5', paddingTop: 12 }}>
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
-                {t('submitLeave.documentChecklist')}
+                📋 Document Checklist
               </Text>
               {[
                 {
-                  ok: (leave.documents ?? []).some((d) => d.classification === 'SICK_LEAVE_CERTIFICATE'),
+                  ok: allDocuments.some((d) => d.classification === 'SICK_LEAVE_CERTIFICATE'),
                   label: t('submitLeave.sickLeaveCertificate'),
                   required: true,
                 },
                 {
-                  ok: (leave.documents ?? []).some((d) => d.classification === 'FINANCIAL_RECEIPT'),
+                  ok: allDocuments.some((d) => d.classification === 'FINANCIAL_RECEIPT'),
                   label: t('submitLeave.financialReceipt'),
                   required: true,
                 },
                 {
-                  ok: (leave.documents ?? []).some((d) => d.classification === 'PRESCRIPTION'),
+                  ok: allDocuments.some((d) => d.classification === 'PRESCRIPTION'),
                   label: t('submitLeave.prescription'),
                   required: false,
                 },
@@ -985,10 +1199,14 @@ const LeaveDetail: React.FC = () => {
             title={<span style={{ fontWeight: 700, color: '#001529' }}>{t('leaveDetail.timeline')}</span>}
             style={{ borderRadius: 12, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
-            <Timeline items={timelineItems} />
+            {timelineItems.length > 0 ? (
+              <Timeline items={timelineItems} />
+            ) : (
+              <Text type="secondary" style={{ fontSize: 12 }}>No timeline events yet</Text>
+            )}
           </Card>
 
-          {/* Upload additional documents */}
+          {/* Upload additional documents — REAL CLOUDINARY UPLOAD */}
           <Collapse
             items={[
               {
@@ -997,23 +1215,42 @@ const LeaveDetail: React.FC = () => {
                   <span style={{ fontWeight: 600, color: '#001529' }}>
                     <CloudUploadOutlined style={{ marginInlineEnd: 8, color: '#D4AF37' }} />
                     {t('leaveDetail.uploadAdditionalDocuments')}
+                    {uploading && <Spin size="small" style={{ marginInlineStart: 8 }} />}
                   </span>
                 ),
                 children: (
                   <div>
                     <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-                      💡 {t('leaveDetail.uploadHelpText')}
+                      💡 Upload additional documents (images or PDFs). Files are uploaded directly to cloud storage.
                     </Text>
                     <Upload.Dragger
                       multiple
                       accept=".jpg,.jpeg,.png,.pdf"
-                      beforeUpload={() => false}
+                      showUploadList={false}
+                      disabled={uploading}
+                      customRequest={({ file, onSuccess, onError }) => {
+                        handleUploadDocument(file as File)
+                          .then(() => onSuccess?.('ok'))
+                          .catch((err) => onError?.(err as Error));
+                      }}
                       style={{ borderRadius: 8 }}
                     >
-                      <CloudUploadOutlined style={{ fontSize: 32, color: '#D4AF37' }} />
-                      <p style={{ marginTop: 8, color: '#595959' }}>
-                        {t('submitLeave.dragDrop')}
-                      </p>
+                      {uploading ? (
+                        <>
+                          <LoadingOutlined style={{ fontSize: 32, color: '#D4AF37' }} />
+                          <p style={{ marginTop: 8, color: '#595959' }}>Uploading to cloud...</p>
+                        </>
+                      ) : (
+                        <>
+                          <CloudUploadOutlined style={{ fontSize: 32, color: '#D4AF37' }} />
+                          <p style={{ marginTop: 8, color: '#595959' }}>
+                            Click or drag files here to upload
+                          </p>
+                          <p style={{ color: '#8c8c8c', fontSize: 11 }}>
+                            Supports: JPG, PNG, PDF (max 10MB)
+                          </p>
+                        </>
+                      )}
                     </Upload.Dragger>
                   </div>
                 ),
