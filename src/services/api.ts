@@ -88,3 +88,26 @@ export const reportsAPI = {
 };
 
 export default api;
+
+export const documentsAPI = {
+  upload: (data: { leaveId: string; fileName: string; fileSize: number; fileType: string; fileUrl: string; documentType?: string }) => 
+    api.post('/documents', data),
+  getByLeave: (leaveId: string) => api.get(`/documents/${leaveId}`),
+  delete: (id: string) => api.delete(`/documents/${id}`),
+};
+
+export const uploadToCloudinary = async (file: File): Promise<{ url: string; publicId: string }> => {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dhofitcxx';
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'slms_documents';
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', uploadPreset);
+  formData.append('folder', 'jordan-aviation-slms');
+  const response = await fetch(
+    'https://api.cloudinary.com/v1_1/' + cloudName + '/auto/upload',
+    { method: 'POST', body: formData }
+  );
+  if (!response.ok) throw new Error('Upload failed');
+  const data = await response.json();
+  return { url: data.secure_url, publicId: data.public_id };
+};

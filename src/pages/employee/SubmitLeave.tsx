@@ -41,20 +41,24 @@ import { useTranslation } from 'react-i18next';
 import dayjs, { Dayjs } from 'dayjs';
 import { useAuthStore } from '../../store/authStore';
 import { useLeaveStore } from '../../store/leaveStore';
-import { doctorsAPI, facilitiesAPI } from '../../services/api';
+import { doctorsAPI, facilitiesAPI, uploadToCloudinary } from '../../services/api';
 import type { DoctorRank, FacilityType, Doctor, Facility } from '../../types';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 // ── Types ──────────────────────────────────────────────────────────────────
-interface MockFile {
+interface UploadedFile {
   id: string;
   name: string;
   size: number;
   type: 'image' | 'pdf';
   classification: string;
   confidence: number;
+  fileUrl?: string;
+  uploading?: boolean;
+  uploadError?: string;
+  rawFile?: File;
 }
 
 interface FormState {
@@ -73,12 +77,7 @@ interface FormState {
 }
 
 // ── Mock pre-filled data ───────────────────────────────────────────────────
-const MOCK_FILES: MockFile[] = [
-  { id: 'f1', name: 'sick-leave-certificate.jpg', size: 2400000, type: 'image', classification: 'SICK_LEAVE_CERTIFICATE', confidence: 95 },
-  { id: 'f2', name: 'pharmacy-receipt.pdf', size: 1100000, type: 'pdf', classification: 'FINANCIAL_RECEIPT', confidence: 88 },
-  { id: 'f3', name: 'prescription.jpg', size: 890000, type: 'image', classification: 'PRESCRIPTION', confidence: 91 },
-];
-
+const INITIAL_FILES: UploadedFile[] = [];
 const MOCK_COMMENT = 'كنت أعاني من آلام شديدة في المعدة في الساعة الثانية صباحاً واضطررت للذهاب إلى الطوارئ. الطبيب شخص الحالة بالتهاب المعدة الحاد ووصف لي العلاج.';
 
 const INITIAL_FORM: FormState = {
@@ -165,7 +164,7 @@ const SubmitLeave: React.FC = () => {
   }, []);
 
   const [currentStep, setCurrentStep] = useState(0);
-  const [files, setFiles] = useState<MockFile[]>(MOCK_FILES);
+  const [files, setFiles] = useState<UploadedFile[]>(INITIAL_FILES);
   const [comment, setComment] = useState(MOCK_COMMENT);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [confirmed, setConfirmed] = useState(false);
@@ -213,22 +212,34 @@ const SubmitLeave: React.FC = () => {
   }));
 
   // ── File handling ──────────────────────────────────────────────────────
-  const handleUpload = (info: { file: UploadFile }) => {
+  const handleUpload = async (info: { file: UploadFile }) => {
     const file = info.file;
     if (file.size && file.size > 10 * 1024 * 1024) {
       message.error('File too large. Maximum 10MB allowed.');
       return false;
     }
     const isPdf = file.name?.toLowerCase().endsWith('.pdf');
-    const newFile: MockFile = {
-      id: `f-${Date.now()}`,
+    const fileId = `f-${Date.now()}`;
+    const newFile: UploadedFile = {
+      id: fileId,
       name: file.name ?? 'document',
       size: file.size ?? 0,
       type: isPdf ? 'pdf' : 'image',
       classification: 'OTHER',
-      confidence: 75 + Math.floor(Math.random() * 20),
+      confidence: 0,
+      uploading: true,
+      rawFile: file.originFileObj || (file as unknown as File),
     };
     setFiles((prev) => [...prev, newFile]);
+    try {
+      const rawFile = file.originFileObj || (file as unknown as File);
+      const result = await uploadToCloudinary(rawFile);
+      setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, fileUrl: result.url, uploading: false, confidence: 95, uploadError: undefined } : f));
+      message.success(`${file.name} uploaded successfully!`);
+    } catch (error) {
+      setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, uploading: false, confidence: 0, uploadError: 'Upload failed' } : f));
+      message.error(`Failed to upload ${file.name}`);
+    }
     return false;
   };
 
@@ -465,10 +476,10 @@ const SubmitLeave: React.FC = () => {
                 options={facilityOptions}
                 onChange={(val) => {
                   setField('facilityName', val);
-                  const found = mockFacilities.find(
+                  const found = facilities.find(
                     (f) => f.nameEn.toLowerCase() === val.toLowerCase() || f.nameAr === val
                   );
-                  if (found) setField('facilityType', found.type);
+                  if (found) setField('facilityType', found.type as FacilityType);
                 }}
                 style={{ width: '100%' }}
                 filterOption={(input, option) =>
