@@ -111,3 +111,13 @@ export const uploadToCloudinary = async (file: File): Promise<{ url: string; pub
   const data = await response.json();
   return { url: data.secure_url, publicId: data.public_id };
 };
+
+export const ocrAPI = {
+  extract: (imageUrl: string, documentId?: string) =>
+    api.post('/ocr/extract', { imageUrl, documentId }),
+};
+
+export const aiAPI = {
+  analyze: (leaveId: string) =>
+    api.post('/ai/analyze', { leaveId }),
+};

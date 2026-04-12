@@ -55,7 +55,7 @@ import {
   RobotOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
-import { leavesAPI, documentsAPI } from '../../services/api';
+import { leavesAPI, documentsAPI, aiAPI } from '../../services/api';
 import type { UploadedDocument } from '../../types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -304,12 +304,15 @@ const LeaveReview: React.FC = () => {
   const weekendAdjacent = isWeekendAdjacent(new Date(leave.fromDate), new Date(leave.toDate));
   const repeatPattern   = employeeAllLeaves.length > 3;
 
-  const ai = leave.aiAnalysis;
-  const compliance    = ai?.compliance    ?? 72;
-  const justifiability = ai?.justifiability ?? 85;
-  const riskScore     = ai?.riskScore     ?? 35;
-  const documentation = ai?.documentation ?? 75;
-  const aiViolations  = ai?.ruleViolations ?? [];
+  const aiSource = (aiResult ?? leave.aiAnalysis) as Record<string, unknown> | null | undefined;
+  const compliance    = (aiSource?.complianceScore ?? aiSource?.compliance ?? 72) as number;
+  const justifiability = (aiSource?.justifiabilityScore ?? aiSource?.justifiability ?? 85) as number;
+  const riskScore     = (aiSource?.riskScore ?? 35) as number;
+  const documentation = (aiSource?.documentationScore ?? aiSource?.documentation ?? 75) as number;
+  const aiViolations  = (aiSource?.flags ?? aiSource?.ruleViolations ?? []) as string[];
+  const aiRecommendations = (aiSource?.recommendations ?? []) as string[];
+  const overallRisk   = (aiSource?.overallRisk ?? 'MEDIUM') as string;
+  const overallScore  = (aiSource?.overallScore ?? 0) as number;
 
   const aiRec = (() => {
     if (compliance > 70 && riskScore < 40) return { label: t('decision.aiRecommendApprove'), color: 'green',  emoji: '🟢' };
