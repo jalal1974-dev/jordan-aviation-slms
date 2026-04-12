@@ -232,6 +232,8 @@ const LeaveReview: React.FC = () => {
   const [blacklistFacility, setBlacklistFacility] = useState(false);
   const [blacklistFacilityReason, setBlacklistFacilityReason] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<Record<string, unknown> | null>(null);
   // Partial
   const [partialFrom,        setPartialFrom]        = useState<Dayjs | null>(null);
   const [partialTo,          setPartialTo]           = useState<Dayjs | null>(null);
