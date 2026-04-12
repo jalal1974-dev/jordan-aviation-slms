@@ -1,4 +1,100 @@
-Part 1 done ✅cat
+import React, { useState, useEffect } from 'react';
+import {
+  Card, Row, Col, Tag, Button, Typography, Alert, Progress, Timeline,
+  Collapse, Upload, Checkbox, Modal, Spin, Image, message,
+} from 'antd';
+import {
+  ArrowLeftOutlined, ArrowRightOutlined, CheckCircleFilled, CloseCircleFilled,
+  ExclamationCircleFilled, CheckCircleOutlined, ExclamationCircleOutlined,
+  MedicineBoxOutlined, LoadingOutlined, FilePdfOutlined, FileImageOutlined,
+  CloudUploadOutlined, WarningFilled, StarFilled, PlusOutlined, EyeOutlined,
+  DownloadOutlined, DeleteOutlined,
+} from '@ant-design/icons';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import dayjs from 'dayjs';
+import { useLeaveStore } from '../../store/leaveStore';
+import { documentsAPI, uploadToCloudinary } from '../../services/api';
+import type { LeaveStatus, Violation, UploadedDocument } from '../../types';
+import { mockViolations } from '../../services/mockData';
+
+const { Text, Title } = Typography;
+const fmtDate = (d: Date | string) => dayjs(d).format('DD MMM YYYY');
+const fmtDateTime = (d: Date | string) => dayjs(d).format('DD MMM YYYY, h:mm A');
+
+const renderStars = (score: number | null | undefined) => {
+  if (score === null || score === undefined) return <Text type="secondary">N/A</Text>;
+  const full = Math.round(score * 5);
+  return (
+    <span>
+      {[1,2,3,4,5].map((i) => (
+        <StarFilled key={i} style={{ color: i <= full ? '#faad14' : '#d9d9d9', fontSize: 12 }} />
+      ))}
+      <Text type="secondary" style={{ fontSize: 11, marginInlineStart: 4 }}>({(score*100).toFixed(0)}%)</Text>
+    </span>
+  );
+};
+
+const mapStatus = (status: string): LeaveStatus => {
+  const m: Record<string, LeaveStatus> = {
+    PENDING:'SUBMITTED', SUBMITTED:'SUBMITTED', PROCESSING:'PROCESSING',
+    UNDER_REVIEW:'UNDER_REVIEW', DOCS_REQUESTED:'DOCS_REQUESTED',
+    EXAMINATION_REQUESTED:'EXAMINATION_REQUESTED', APPROVED:'APPROVED',
+    PARTIALLY_APPROVED:'PARTIALLY_APPROVED', REJECTED:'REJECTED',
+    PENDING_COMMITTEE:'PENDING_COMMITTEE',
+  };
+  return m[status] || (status as LeaveStatus);
+};
+
+const mapLeaveData = (raw: Record<string, unknown>) => {
+  const decision = raw.decision as Record<string, unknown> | null;
+  return {
+    ...raw,
+    refNumber: raw.referenceNumber || raw.refNumber || '',
+    status: mapStatus((raw.status as string) || 'SUBMITTED'),
+    employeeComments: raw.employeeComment || raw.employeeComments || '',
+    icd10Code: raw.icdCode || raw.icd10Code || '',
+    wasHospitalized: raw.isHospitalized ?? raw.wasHospitalized ?? false,
+    isChronicDisease: raw.isChronicDisease ?? false,
+    companyDoctorAssessment: decision?.medicalAssessment || raw.companyDoctorAssessment || '',
+    companyDoctorInstructions: decision?.instructionsToEmployee || raw.companyDoctorInstructions || '',
+    rejectionReason: (() => {
+      if (decision?.rejectionReasons) {
+        const r = decision.rejectionReasons as string[];
+        return Array.isArray(r) ? r.join('; ') : String(r);
+      }
+      return raw.rejectionReason || '';
+    })(),
+    documents: raw.documents || [],
+    timeline: raw.timeline || [
+      { id:'1', timestamp: raw.submittedAt||raw.createdAt||new Date(), type:'SUBMITTED', description:'Leave request submitted', color:'blue' },
+      ...(raw.reviewedAt ? [{ id:'2', timestamp:raw.reviewedAt, type:'REVIEWED', description:'Under review by company doctor', color:'orange' }] : []),
+      ...(raw.decidedAt ? [{ id:'3', timestamp:raw.decidedAt, type:'DECIDED', description:'Decision: '+mapStatus((raw.status as string)||''), color: raw.status==='APPROVED'?'green':raw.status==='REJECTED'?'red':'gold' }] : []),
+    ],
+  };
+};
+
+const mapDocument = (doc: Record<string, unknown>): UploadedDocument => ({
+  id: (doc.id as string)||'', fileName: (doc.fileName as string)||'Document',
+  fileSize: (doc.fileSize as number)||0, fileType: (doc.fileType as string)||'image/jpeg',
+  url: (doc.fileUrl as string)||(doc.url as string)||'',
+  classification: ((doc.documentType as string)||(doc.classification as string)||'OTHER') as UploadedDocument['classification'],
+  confidence: (doc.confidence as number)||0.9, uploadedAt: (doc.uploadedAt as Date)||(doc.createdAt as Date)||new Date(),
+});
+
+const STATUS_META: Record<string, {bg:string;text:string;border:string}> = {
+  SUBMITTED:{bg:'#1890ff',text:'#fff',border:'#1890ff'}, PROCESSING:{bg:'#13c2c2',text:'#fff',border:'#13c2c2'},
+  UNDER_REVIEW:{bg:'#fa8c16',text:'#fff',border:'#fa8c16'}, DOCS_REQUESTED:{bg:'#722ed1',text:'#fff',border:'#722ed1'},
+  EXAMINATION_REQUESTED:{bg:'#eb2f96',text:'#fff',border:'#eb2f96'}, APPROVED:{bg:'#52c41a',text:'#fff',border:'#52c41a'},
+  PARTIALLY_APPROVED:{bg:'#fa8c16',text:'#fff',border:'#fa8c16'}, REJECTED:{bg:'#ff4d4f',text:'#fff',border:'#ff4d4f'},
+  PENDING_COMMITTEE:{bg:'#fa541c',text:'#fff',border:'#fa541c'},
+};
+const DOC_TYPE_COLOR: Record<string,string> = { SICK_LEAVE_CERTIFICATE:'blue', FINANCIAL_RECEIPT:'green', PRESCRIPTION:'purple', LAB_RESULTS:'orange', XRAY:'cyan', HOSPITAL_REPORT:'geekblue', OTHER:'default' };
+const DOC_TYPE_LABEL: Record<string,string> = { SICK_LEAVE_CERTIFICATE:'Sick Leave Certificate', FINANCIAL_RECEIPT:'Financial Receipt', PRESCRIPTION:'Prescription', LAB_RESULTS:'Lab Results', XRAY:'X-ray', HOSPITAL_REPORT:'Hospital Report', OTHER:'Other' };
+const RANK_LABEL: Record<string,string> = { GP:'GP', GENERAL_PRACTITIONER:'GP', RESIDENT:'Resident', SPECIALIST:'Specialist', CONSULTANT:'Consultant' };
+const FACILITY_TYPE_LABEL: Record<string,string> = { GOVERNMENT_HOSPITAL:'Government Hospital', PRIVATE_HOSPITAL:'Private Hospital', UNIVERSITY_HOSPITAL:'University Hospital', ROYAL_MEDICAL_SERVICES:'Royal Medical Services', HEALTH_CENTER:'Health Center', PRIVATE_CLINIC:'Private Clinic', PRIVATE_24H:'Private 24h Center', PRIVATE_24H_CENTER:'Private 24h Center', SPECIALIZED_CENTER:'Specialized Center', MILITARY_HOSPITAL:'Military Hospital' };
+const isImageUrl = (u:string) => { if(!u) return false; const l=u.toLowerCase(); return l.includes('.jpg')||l.includes('.jpeg')||l.includes('.png')||l.includes('.gif')||l.includes('.webp')||l.includes('/image/'); };
+const isPdfUrl = (u:string) => { if(!u) return false; return u.toLowerCase().includes('.pdf')||u.toLowerCase().includes('/raw/'); };
 
 const LeaveDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -127,7 +223,6 @@ const LeaveDetail: React.FC = () => {
               </Row>
             ))}
           </Card>
-
           <Card title={<span style={{fontWeight:700,color:'#001529'}}>{t('leaveDetail.medicalInformation')}</span>} style={{borderRadius:12,marginBottom:20,boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
             <div style={{marginBottom:14,paddingBottom:14,borderBottom:'1px solid #f5f5f5'}}>
               <Text type="secondary" style={{fontSize:11,display:'block',marginBottom:4}}>Treating Doctor</Text>
@@ -148,7 +243,6 @@ const LeaveDetail: React.FC = () => {
               {leave.facility?.isBlocked && <Alert type="error" showIcon message="This facility is BLOCKED" style={{borderRadius:8,marginTop:8,fontSize:12}} />}
             </div>
           </Card>
-
           <Card title={<span style={{fontWeight:700,color:'#001529'}}>{t('leaveDetail.diagnosis')}</span>} style={{borderRadius:12,marginBottom:20,boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
             {[
               {label:t('leaveDetail.symptoms'),val:leave.symptoms||'—'},
@@ -163,7 +257,6 @@ const LeaveDetail: React.FC = () => {
               </Row>
             ))}
           </Card>
-
           {showDecision && (
             <Card title={<span style={{fontWeight:700,color:'#001529'}}>{t('leaveDetail.companyDoctorDecision')}</span>} style={{borderRadius:12,marginBottom:20,boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
               <div style={{marginBottom:12}}>
@@ -188,7 +281,6 @@ const LeaveDetail: React.FC = () => {
               )}
             </Card>
           )}
-
           {violation && (
             <Card title={<span style={{fontWeight:700,color:'#ff4d4f'}}><WarningFilled style={{marginInlineEnd:8}} />Penalty</span>} style={{borderRadius:12,marginBottom:20,borderInlineStart:'4px solid #ff4d4f'}}>
               {[
@@ -205,7 +297,6 @@ const LeaveDetail: React.FC = () => {
             </Card>
           )}
         </Col>
-
         <Col xs={24} lg={10}>
           <Card title={<span style={{fontWeight:700,color:'#001529'}}>{t('leaveDetail.myComment')}</span>} style={{borderRadius:12,marginBottom:20,boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
             <div style={{background:leave.employeeComments?'#e6f7ff':'#fafafa',borderRadius:8,padding:'12px 16px',minHeight:60}}>
@@ -214,11 +305,7 @@ const LeaveDetail: React.FC = () => {
               </Text>
             </div>
           </Card>
-
-          <Card
-            title={<span style={{fontWeight:700,color:'#001529'}}>📄 {t('leaveDetail.myDocuments')}{allDocuments.length>0 && <Tag color="blue" style={{marginInlineStart:8}}>{allDocuments.length}</Tag>}</span>}
-            style={{borderRadius:12,marginBottom:20,boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}
-          >
+          <Card title={<span style={{fontWeight:700,color:'#001529'}}>📄 {t('leaveDetail.myDocuments')}{allDocuments.length>0 && <Tag color="blue" style={{marginInlineStart:8}}>{allDocuments.length}</Tag>}</span>} style={{borderRadius:12,marginBottom:20,boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
             {docsLoading ? (
               <div style={{textAlign:'center',padding:20}}><Spin size="small" /><Text type="secondary" style={{display:'block',marginTop:8,fontSize:12}}>Loading documents...</Text></div>
             ) : allDocuments.length === 0 ? (
@@ -237,8 +324,7 @@ const LeaveDetail: React.FC = () => {
                       <Col key={doc.id} xs={24} sm={12}>
                         <div style={{border:'1px solid #f0f0f0',borderRadius:8,overflow:'hidden'}}>
                           {isImg && doc.url ? (
-                            <Image src={doc.url} alt={doc.fileName} width="100%" height={140} style={{objectFit:'cover'}}
-                              placeholder={<div style={{width:'100%',height:140,display:'flex',alignItems:'center',justifyContent:'center',background:'#f5f5f5'}}><Spin size="small" /></div>} />
+                            <Image src={doc.url} alt={doc.fileName} width="100%" height={140} style={{objectFit:'cover'}} placeholder={<div style={{width:'100%',height:140,display:'flex',alignItems:'center',justifyContent:'center',background:'#f5f5f5'}}><Spin size="small" /></div>} />
                           ) : isPdf ? (
                             <div style={{height:140,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#fff2f0',cursor:'pointer'}} onClick={() => window.open(doc.url,'_blank')}>
                               <FilePdfOutlined style={{fontSize:48,color:'#ff4d4f'}} /><Text style={{fontSize:11,color:'#ff4d4f',marginTop:4}}>Click to view PDF</Text>
@@ -281,17 +367,15 @@ const LeaveDetail: React.FC = () => {
               ))}
             </div>
           </Card>
-
           <Card title={<span style={{fontWeight:700,color:'#001529'}}>{t('leaveDetail.timeline')}</span>} style={{borderRadius:12,marginBottom:20,boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
             {timelineItems.length>0 ? <Timeline items={timelineItems} /> : <Text type="secondary" style={{fontSize:12}}>No timeline events yet</Text>}
           </Card>
-
           <Collapse items={[{
             key:'1',
             label:<span style={{fontWeight:600,color:'#001529'}}><CloudUploadOutlined style={{marginInlineEnd:8,color:'#D4AF37'}} />{t('leaveDetail.uploadAdditionalDocuments')}{uploading && <Spin size="small" style={{marginInlineStart:8}} />}</span>,
             children:(
               <div>
-                <Text type="secondary" style={{fontSize:12,display:'block',marginBottom:12}}>💡 Upload additional documents. Files go directly to cloud storage.</Text>
+                <Text type="secondary" style={{fontSize:12,display:'block',marginBottom:12}}>Upload additional documents to cloud storage.</Text>
                 <Upload.Dragger multiple accept=".jpg,.jpeg,.png,.pdf" showUploadList={false} disabled={uploading}
                   customRequest={({file,onSuccess,onError}) => {handleUploadDocument(file as File).then(()=>onSuccess?.('ok')).catch((err)=>onError?.(err as Error));}}
                   style={{borderRadius:8}}>
@@ -300,13 +384,11 @@ const LeaveDetail: React.FC = () => {
               </div>
             ),
           }]} style={{borderRadius:12,marginBottom:20}} />
-
           <div style={{paddingBottom:32}}>
             <Button block size="large" icon={isAr?<ArrowRightOutlined />:<ArrowLeftOutlined />} onClick={() => navigate('/employee/my-leaves')} style={{borderRadius:8}}>{t('leaveDetail.backToMyLeaves')}</Button>
           </div>
         </Col>
       </Row>
-
       <Modal open={confirmModalVisible} title="Confirm Attendance" onCancel={() => setConfirmModalVisible(false)}
         footer={[<Button key="c" onClick={() => setConfirmModalVisible(false)}>Cancel</Button>,
           <Button key="ok" type="primary" style={{background:'#52c41a',borderColor:'#52c41a'}} disabled={!attendanceConfirmed} onClick={() => setConfirmModalVisible(false)}>Confirm</Button>]}>
