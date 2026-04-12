@@ -55,7 +55,7 @@ import {
   RobotOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
-import { leavesAPI } from '../../services/api';
+import { leavesAPI, documentsAPI } from '../../services/api';
 import type { UploadedDocument } from '../../types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -119,6 +119,7 @@ const facilityTypeKey = (type: string): string => {
     HEALTH_CENTER:         'healthCenter',
     PRIVATE_CLINIC:        'privateClinic',
     PRIVATE_24H:           'private24h',
+    PRIVATE_24H_CENTER:    'private24h',
     SPECIALIZED_CENTER:    'specializedCenter',
     MILITARY_HOSPITAL:     'militaryHospital',
   };
@@ -146,6 +147,29 @@ examTimes.push('15:00');
 
 /* ── Component ────────────────────────────────────────────────────────── */
 
+
+const mapBackendLeave = (raw: any) => {
+  if (!raw) return raw;
+  const rankMap: Record<string,string> = { GENERAL_PRACTITIONER:'GP', GP:'GP', RESIDENT:'RESIDENT', SPECIALIST:'SPECIALIST', CONSULTANT:'CONSULTANT' };
+  const facilityMap: Record<string,string> = { PRIVATE_24H_CENTER:'PRIVATE_24H' };
+  const statusMap: Record<string,string> = { PENDING:'SUBMITTED' };
+  const decision = raw.decision as any;
+  return {
+    ...raw,
+    refNumber: raw.referenceNumber || raw.refNumber || '',
+    status: statusMap[raw.status] || raw.status,
+    employeeComments: raw.employeeComment || raw.employeeComments || '',
+    icd10Code: raw.icdCode || raw.icd10Code || '',
+    wasHospitalized: raw.isHospitalized ?? raw.wasHospitalized ?? false,
+    companyDoctorAssessment: decision?.medicalAssessment || raw.companyDoctorAssessment || '',
+    companyDoctorInstructions: decision?.instructionsToEmployee || raw.companyDoctorInstructions || '',
+    rejectionReason: decision?.rejectionReasons ? (Array.isArray(decision.rejectionReasons) ? decision.rejectionReasons.join('; ') : String(decision.rejectionReasons)) : raw.rejectionReason || '',
+    doctor: raw.doctor ? { ...raw.doctor, rank: rankMap[raw.doctor.rank] || raw.doctor.rank, leavesIssued: raw.doctor.totalLeaves || raw.doctor.leavesIssued || 0, leavesFlagged: raw.doctor.flaggedLeaves || raw.doctor.leavesFlagged || 0 } : raw.doctor,
+    facility: raw.facility ? { ...raw.facility, type: facilityMap[raw.facility.type] || raw.facility.type, leavesFromFacility: raw.facility.totalLeaves || raw.facility.leavesFromFacility || 0 } : raw.facility,
+    documents: raw.documents || [],
+  };
+};
+
 const LeaveReview: React.FC = () => {
   const { id }       = useParams<{ id: string }>();
   const navigate     = useNavigate();
@@ -162,7 +186,7 @@ const LeaveReview: React.FC = () => {
     leavesAPI.getById(id)
       .then((res) => {
         const data = res.data?.data ?? res.data;
-        setLeave(data ?? null);
+        setLeave(mapBackendLeave(data) ?? null);
         if (data) {
           setPartialFrom(dayjs(data.fromDate));
           setPartialTo(dayjs(data.fromDate).add(1, 'day'));
@@ -181,6 +205,22 @@ const LeaveReview: React.FC = () => {
   }, [id]);
 
   /* ── All state — must be before any conditional return ── */
+  const [realDocs, setRealDocs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (id) {
+      documentsAPI.getByLeave(id)
+        .then((res) => {
+          const docs = res.data?.data ?? res.data ?? [];
+          setRealDocs(Array.isArray(docs) ? docs.map((d: any) => ({
+            ...d, url: d.fileUrl || d.url || '', classification: d.documentType || d.classification || 'OTHER',
+            confidence: d.confidence || 0.9, fileName: d.fileName || 'Document',
+          })) : []);
+        })
+        .catch(() => {});
+    }
+  }, [id]);
+
   const [previewDoc, setPreviewDoc]           = useState<UploadedDocument | null>(null);
   const [selectedDecision, setSelectedDecision] = useState<string>('');
   const [medicalAssessment, setMedicalAssessment] = useState('');
@@ -253,7 +293,11 @@ const LeaveReview: React.FC = () => {
   const employee = leave?.employee ?? {};
   const doctor   = leave?.doctor   ?? {};
   const facility = leave?.facility ?? {};
-  const documents: any[] = leave?.documents ?? [];
+  const leaveDocuments: any[] = leave?.documents ?? [];
+  const documents: any[] = [
+    ...leaveDocuments,
+    ...realDocs.filter((rd: any) => !leaveDocuments.some((ld: any) => ld.id === rd.id)),
+  ];
   const daysUsed = employeeAllLeaves
     .filter((l: any) => l.status === 'APPROVED' || l.status === 'PARTIALLY_APPROVED')
     .reduce((sum: number, l: any) => sum + (l.approvedDays ?? 0), 0);
@@ -703,7 +747,7 @@ const LeaveReview: React.FC = () => {
             )}
             <Row gutter={[16, 8]} style={{ marginTop: 12 }}>
               <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.doctorName')}</Text><Text strong style={{ fontSize: 15 }}>{isAr ? doctor.nameAr : doctor.nameEn}</Text></Col>
-              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.rank')}</Text><Tag color={doctor.rank === 'GP' || doctor.rank === 'RESIDENT' ? 'default' : doctor.rank === 'SPECIALIST' ? 'blue' : 'purple'}>{t(`doctorRanks.${(doctor.rank ?? '').toLowerCase()}`)}</Tag></Col>
+              <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.rank')}</Text><Tag color={doctor.rank === 'GP' || doctor.rank === 'GENERAL_PRACTITIONER' || doctor.rank === 'RESIDENT' ? 'default' : doctor.rank === 'SPECIALIST' ? 'blue' : 'purple'}>{t(`doctorRanks.${(doctor.rank ?? '').toLowerCase()}`)}</Tag></Col>
               <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.specialty')}</Text><Text style={{ fontSize: 14 }}>{doctor.specialty}</Text></Col>
               <Col xs={24} sm={12}><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{t('leaveReview.trustScore')}</Text>{trustStars(doctor.trustScore ?? null)}{doctor.trustScore != null && <Text style={{ marginInlineStart: 6, fontSize: 12, color: '#888' }}>({Math.round(doctor.trustScore * 100)}%)</Text>}</Col>
               <Col span={24}><Text type="secondary" style={{ fontSize: 12 }}>{t('leaveReview.doctorHistory', { count: doctor.leavesIssued ?? 0, flagged: doctor.leavesFlagged ?? 0 })}</Text></Col>
