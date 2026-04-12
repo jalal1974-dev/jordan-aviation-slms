@@ -695,7 +695,7 @@ const LeaveReview: React.FC = () => {
             <Row gutter={[8, 8]}>
               <Col span={6}><Statistic title={<Text style={{ fontSize: 11 }}>{t('leaveReview.totalLeaves')}</Text>} value={employeeAllLeaves.length} valueStyle={{ fontSize: 20, color: '#1890ff' }} /></Col>
               <Col span={6}><Statistic title={<Text style={{ fontSize: 11 }}>{t('leaveReview.daysUsed')}</Text>} value={daysUsed} valueStyle={{ fontSize: 20, color: '#fa8c16' }} /></Col>
-              <Col span={6}><Statistic title={<Text style={{ fontSize: 11 }}>{t('leaveReview.balance')}</Text>} value={`${employee.sickLeaveBalance}/${employee.sickLeaveTotal}`} valueStyle={{ fontSize: 20, color: '#52c41a' }} /></Col>
+              <Col span={6}><Statistic title={<Text style={{ fontSize: 11 }}>{t('leaveReview.balance')}</Text>} value={`${employee.sickLeaveBalance ?? 14}/${employee.sickLeaveTotal ?? 14}`} valueStyle={{ fontSize: 20, color: '#52c41a' }} /></Col>
               <Col span={6}><Statistic title={<Text style={{ fontSize: 11 }}>{t('leaveReview.violations')}</Text>} value={violations.length} valueStyle={{ fontSize: 20, color: violations.length > 0 ? '#ff4d4f' : '#52c41a' }} /></Col>
             </Row>
             <div style={{ marginTop: 12 }}>
