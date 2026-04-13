@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://9e12b35c-cbf6-48b9-9b47-cbb15e809574-00-2of7qkpr7rqsr.janeway.replit.dev/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://jordan-aviation-slms-api.onrender.com/api',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
