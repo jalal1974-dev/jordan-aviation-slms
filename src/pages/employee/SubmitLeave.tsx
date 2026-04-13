@@ -239,11 +239,11 @@ const SubmitLeave: React.FC = () => {
       setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, fileUrl: result.url, uploading: false, confidence: 95, uploadError: undefined } : f));
       message.success(`${file.name} uploaded successfully!`);
 
-      // ── OCR Auto-fill ──
+      // ── OCR Auto-fill (non-blocking) ──
       if (!isPdf && result.url && !ocrDone) {
         setOcrLoading(true);
-        try {
-          const ocrRes = await ocrAPI.extract(result.url);
+        message.loading({ content: t('submitLeave.ocrProcessing') || 'AI is reading your document...', key: 'ocr', duration: 0 });
+        ocrAPI.extract(result.url).then((ocrRes) => {
           const fields = ocrRes.data?.data?.fields ?? ocrRes.data?.fields;
           if (fields) {
             setForm((prev) => ({
@@ -258,13 +258,16 @@ const SubmitLeave: React.FC = () => {
             }));
             setOcrDone(true);
             const count = Object.values(fields).filter(Boolean).length;
-            message.success(t('submitLeave.ocrSuccess') || `OCR extracted ${count} fields automatically!`);
+            message.success({ content: t('submitLeave.ocrSuccess') || 'AI extracted ' + count + ' fields!', key: 'ocr', duration: 4 });
+          } else {
+            message.info({ content: 'OCR completed but no fields extracted', key: 'ocr', duration: 3 });
           }
-        } catch (ocrErr) {
+        }).catch((ocrErr) => {
           console.warn('[OCR] Auto-fill failed:', ocrErr);
-        } finally {
+          message.warning({ content: t('submitLeave.ocrFailed') || 'AI could not read document. Please fill fields manually.', key: 'ocr', duration: 4 });
+        }).finally(() => {
           setOcrLoading(false);
-        }
+        });
       }
     } catch (error) {
       setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, uploading: false, confidence: 0, uploadError: 'Upload failed' } : f));
