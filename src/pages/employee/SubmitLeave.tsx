@@ -78,21 +78,21 @@ interface FormState {
 
 // ── Mock pre-filled data ───────────────────────────────────────────────────
 const INITIAL_FILES: UploadedFile[] = [];
-const MOCK_COMMENT = 'كنت أعاني من آلام شديدة في المعدة في الساعة الثانية صباحاً واضطررت للذهاب إلى الطوارئ. الطبيب شخص الحالة بالتهاب المعدة الحاد ووصف لي العلاج.';
+const MOCK_COMMENT = '';
 
 const INITIAL_FORM: FormState = {
-  doctorName: 'Dr. Ahmad Saleh',
+  doctorName: '',
   doctorRank: 'SPECIALIST',
-  doctorSpecialty: 'INTERNAL_MEDICINE',
-  facilityName: 'Jordan Hospital',
+  doctorSpecialty: '',
+  facilityName: '',
   facilityType: 'PRIVATE_HOSPITAL',
-  fromDate: dayjs('2024-06-12'),
-  toDate: dayjs('2024-06-13'),
+  fromDate: dayjs(),
+  toDate: dayjs().add(1, 'day'),
   wasHospitalized: false,
   isChronicDisease: false,
-  symptoms: 'Severe stomach pain, nausea, vomiting',
-  diagnosis: 'Acute Gastritis',
-  icd10Code: 'K29.1',
+  symptoms: '',
+  diagnosis: '',
+  icd10Code: '',
 };
 
 const formatSize = (bytes: number) => {
