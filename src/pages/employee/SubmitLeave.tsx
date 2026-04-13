@@ -41,7 +41,7 @@ import { useTranslation } from 'react-i18next';
 import dayjs, { Dayjs } from 'dayjs';
 import { useAuthStore } from '../../store/authStore';
 import { useLeaveStore } from '../../store/leaveStore';
-import { doctorsAPI, facilitiesAPI, uploadToCloudinary } from '../../services/api';
+import { leavesAPI, doctorsAPI, facilitiesAPI, documentsAPI, uploadToCloudinary, ocrAPI, aiAPI } from '../../services/api';
 import type { DoctorRank, FacilityType, Doctor, Facility } from '../../types';
 
 const { Text, Title } = Typography;
@@ -169,6 +169,8 @@ const SubmitLeave: React.FC = () => {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrDone, setOcrDone] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [refNumber, setRefNumber] = useState('');
 
@@ -236,6 +238,34 @@ const SubmitLeave: React.FC = () => {
       const result = await uploadToCloudinary(rawFile);
       setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, fileUrl: result.url, uploading: false, confidence: 95, uploadError: undefined } : f));
       message.success(`${file.name} uploaded successfully!`);
+
+      // ── OCR Auto-fill ──
+      if (!isPdf && result.url && !ocrDone) {
+        setOcrLoading(true);
+        try {
+          const ocrRes = await ocrAPI.extract(result.url);
+          const fields = ocrRes.data?.data?.fields ?? ocrRes.data?.fields;
+          if (fields) {
+            setForm((prev) => ({
+              ...prev,
+              ...(fields.doctorName ? { doctorName: fields.doctorName } : {}),
+              ...(fields.facilityName ? { facilityName: fields.facilityName } : {}),
+              ...(fields.diagnosis ? { diagnosis: fields.diagnosis } : {}),
+              ...(fields.icdCode ? { icd10Code: fields.icdCode } : {}),
+              ...(fields.startDate ? { fromDate: dayjs(fields.startDate) } : {}),
+              ...(fields.endDate ? { toDate: dayjs(fields.endDate) } : {}),
+              ...(fields.isHospitalized !== undefined ? { wasHospitalized: fields.isHospitalized } : {}),
+            }));
+            setOcrDone(true);
+            const count = Object.values(fields).filter(Boolean).length;
+            message.success(t('submitLeave.ocrSuccess') || `OCR extracted ${count} fields automatically!`);
+          }
+        } catch (ocrErr) {
+          console.warn('[OCR] Auto-fill failed:', ocrErr);
+        } finally {
+          setOcrLoading(false);
+        }
+      }
     } catch (error) {
       setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, uploading: false, confidence: 0, uploadError: 'Upload failed' } : f));
       message.error(`Failed to upload ${file.name}`);
@@ -253,9 +283,57 @@ const SubmitLeave: React.FC = () => {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const ref = await submitLeave({});
+      // Build real payload from form
+      const payload = {
+        fromDate: form.fromDate.toISOString(),
+        toDate: form.toDate.toISOString(),
+        employeeComment: comment || null,
+        symptoms: form.symptoms || null,
+        diagnosis: form.diagnosis || null,
+        icdCode: form.icd10Code || null,
+        isHospitalized: form.wasHospitalized,
+        isChronicDisease: form.isChronicDisease,
+        doctorId: selectedDoctor?.id || null,
+        facilityId: selectedFacility?.id || null,
+      };
+
+      const response = await leavesAPI.submit(payload);
+      const leaveData = response.data?.data ?? response.data;
+      const leaveId = leaveData?.id;
+      const ref = leaveData?.referenceNumber ?? leaveData?.refNumber ?? 'SL-' + Date.now();
+
+      // Save uploaded documents to the leave
+      if (leaveId) {
+        for (const f of files) {
+          if (f.fileUrl) {
+            try {
+              await documentsAPI.upload({
+                leaveId,
+                fileName: f.name,
+                fileSize: f.size,
+                fileType: f.type === 'pdf' ? 'application/pdf' : 'image/jpeg',
+                fileUrl: f.fileUrl,
+                documentType: f.classification || 'OTHER',
+              });
+            } catch (docErr) {
+              console.warn('Failed to save document:', docErr);
+            }
+          }
+        }
+
+        // Auto-trigger AI analysis
+        try {
+          await aiAPI.analyze(leaveId);
+        } catch (aiErr) {
+          console.warn('[AI] Auto-analysis failed:', aiErr);
+        }
+      }
+
       setRefNumber(ref);
       setSuccessModal(true);
+    } catch (err: unknown) {
+      const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Submission failed';
+      message.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -380,9 +458,14 @@ const SubmitLeave: React.FC = () => {
   const renderStep2 = () => (
     <div className="slide-in">
       <Alert
-        type="warning"
+        type={ocrDone ? "success" : ocrLoading ? "info" : "warning"}
         showIcon
-        message={t('submitLeave.aiAnalyzedDocuments')}
+        message={ocrLoading
+          ? (t('submitLeave.ocrProcessing') || '🔄 AI is reading your document and auto-filling fields...')
+          : ocrDone
+            ? (t('submitLeave.ocrComplete') || '✅ AI auto-filled fields from your document. Please verify.')
+            : t('submitLeave.aiAnalyzedDocuments')
+        }
         style={{ borderRadius: 10, marginBottom: 20 }}
       />
 
